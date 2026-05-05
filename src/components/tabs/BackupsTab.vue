@@ -286,7 +286,13 @@ async function createBackup() {
         gui_log(t("profileBackupApiSuccess"));
         await loadBackups();
     } catch (error) {
-        gui_log(`${t("profileBackupApiFail")}: ${error.message || error}`);
+        const message = `${t("profileBackupApiFail")} : ${error.message || error}`;
+        gui_log(message);
+        console.error("Backup creation failed:", error);
+        await dialog.showInfo(t("warningTitle"), message, { confirmText: t("close") });
+    } finally {
+        waitingDialog.close();
+        isCreatingBackup.value = false;
     }
 }
 

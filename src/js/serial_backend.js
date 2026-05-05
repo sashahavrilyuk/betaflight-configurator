@@ -513,7 +513,15 @@ function processBoardInfo() {
     }
 }
 
+function shouldHideReportProblem(problemName) {
+    return problemName === "ACC_NEEDS_CALIBRATION" && getConfig("hideWarningAcc")?.hideWarningAcc === true;
+}
+
 function checkReportProblem(problemName, problems) {
+    if (shouldHideReportProblem(problemName)) {
+        return false;
+    }
+
     if (bit_check(FC.CONFIG.configurationProblems, FC.CONFIGURATION_PROBLEM_FLAGS[problemName])) {
         problems.push({ name: problemName, description: i18n.getMessage(`reportProblemsDialog${problemName}`) });
         return true;

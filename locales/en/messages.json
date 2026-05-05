@@ -170,6 +170,9 @@
     "warningSettings": {
         "message": "Show warnings"
     },
+    "hideWarningAcc": {
+        "message": "Hide accelerometer calibration warning"
+    },
     "rememberLastTab": {
         "message": "Reopen last tab on connect"
     },

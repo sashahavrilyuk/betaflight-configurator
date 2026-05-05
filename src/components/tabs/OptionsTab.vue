@@ -6,6 +6,9 @@
                 <SettingRow :label="$t('expertMode')">
                     <USwitch v-model="settings.expertMode" size="sm" />
                 </SettingRow>
+                <SettingRow :label="$t('hideWarningAcc')">
+                    <USwitch v-model="settings.hideWarningAcc" size="sm" />
+                </SettingRow>
                 <SettingRow :label="$t('rememberLastTab')">
                     <USwitch v-model="settings.rememberLastTab" size="sm" />
                 </SettingRow>
@@ -160,6 +163,7 @@ import GUI from "../../js/gui";
 import { get as getConfig, set as setConfig } from "../../js/ConfigStorage";
 import { i18n } from "../../js/localization";
 import PortHandler from "../../js/port_handler";
+import DisableWarningAcc from "../../js/DisableWarningAcc";
 import CliAutoComplete from "../../js/CliAutoComplete";
 import DarkTheme, { setDarkTheme } from "../../js/DarkTheme";
 import { checkSetupAnalytics } from "../../js/Analytics";
@@ -185,6 +189,7 @@ export default defineComponent({
         const settings = reactive({
             rememberLastTab: !!getConfig("rememberLastTab").rememberLastTab,
             meteredConnection: !!getConfig("meteredConnection").meteredConnection,
+            hideWarningAcc: !!getConfig("hideWarningAcc").hideWarningAcc,
             analyticsOptOut: !!getConfig("analyticsOptOut").analyticsOptOut,
             cliAutoComplete: CliAutoComplete.configEnabled,
             showManualMode: !!getConfig("showManualMode").showManualMode,
@@ -217,6 +222,14 @@ export default defineComponent({
             (value) => {
                 setConfig({ meteredConnection: value });
                 ispConnected(); // Update network status
+            },
+        );
+
+        watch(
+            () => settings.hideWarningAcc,
+            (value) => {
+                setConfig({ hideWarningAcc: value });
+                DisableWarningAcc.setEnabled(value);
             },
         );
 
