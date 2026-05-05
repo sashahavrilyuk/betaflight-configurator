@@ -79,6 +79,19 @@ class LoginManager {
         }
     }
 
+    async createLocalAccount(email) {
+        try {
+            this.showWaitingDialog(i18n.getMessage("userCreatingAccount"));
+            await this._userApi.createLocalAccount(email);
+            this.hideWaitingDialog();
+        } catch (error) {
+            this.hideWaitingDialog();
+            gui_log(`${i18n.getMessage("userCreateAccountFailed")}: ${error}`);
+            console.error("Create local account error:", error);
+            throw error;
+        }
+    }
+
     /**
      * Create a new passkey for the user
      */

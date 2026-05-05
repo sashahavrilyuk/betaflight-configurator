@@ -8324,6 +8324,9 @@
     "labelSignInWithEmailCode": {
         "message": "Sign in with email code instead"
     },
+    "labelCreateLocalAccount": {
+        "message": "Create new local account"
+    },
     "labelBackToPasskey": {
         "message": "Back to passkey sign in"
     },
@@ -8339,11 +8342,17 @@
     "descriptionPasskeyLogin": {
         "message": "Use your passkey to sign in"
     },
+    "descriptionCreateAccount": {
+        "message": "Create an account to be able to save your backups online and access them from any device"
+    },
     "descriptionCodeRequest": {
         "message": "We'll email you a verification code"
     },
     "descriptionCodeEntered": {
         "message": "Enter the code we sent to $1"
+    },
+    "titleCreateAccount": {
+        "message": "Create Account"
     },
     "titleEnterVerificationCode": {
         "message": "Enter Verification Code"
@@ -8380,6 +8389,9 @@
     },
     "userCreatingPasskey": {
         "message": "Creating passkey..."
+    },
+    "userCreatingAccount": {
+        "message": "Creating account..."
     },
     "userCodeRequired": {
         "message": "Verification code is required"

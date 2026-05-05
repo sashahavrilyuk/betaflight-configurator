@@ -6,6 +6,7 @@ import { i18n } from "../../js/localization";
 const MODE_PASSKEY = "passkey";
 const MODE_CODE_REQUEST = "code-request";
 const MODE_CODE_VERIFY = "code-verify";
+const MODE_CREATE_ACCOUNT_LOCAL = "create-account";
 
 export function useUserSession() {
     const isLoggedIn = ref(false);
@@ -23,6 +24,7 @@ export function useUserSession() {
     const codeEmail = ref("");
 
     const loginDialogOpen = ref(false);
+    const createLocalAccountDialogOpen = ref(false);
     const waitingDialogOpen = ref(false);
     const waitingMessage = ref("");
 
@@ -42,9 +44,13 @@ export function useUserSession() {
     });
 
     const loginTitle = computed(() => {
-        return loginMode.value === MODE_CODE_VERIFY
-            ? i18n.getMessage("titleEnterVerificationCode")
-            : i18n.getMessage("titleLogin");
+        if (loginMode.value === MODE_CODE_VERIFY) {
+            return i18n.getMessage("titleEnterVerificationCode");
+        }
+        if (loginMode.value === MODE_CREATE_ACCOUNT_LOCAL) {
+            return i18n.getMessage("titleCreateAccount");
+        }
+        return i18n.getMessage("titleLogin");
     });
 
     const loginDescription = computed(() => {
@@ -117,6 +123,13 @@ export function useUserSession() {
         codeEmail.value = "";
     };
 
+    const resetCreateAccountDialog = () => {
+        loginMode.value = MODE_CREATE_ACCOUNT_LOCAL;
+        loginEmail.value = "";
+        loginError.value = null;
+        loginSubmitting.value = false;
+    };
+
     const showLoginDialog = () => {
         loginDialogOpen.value = true;
     };
@@ -130,6 +143,19 @@ export function useUserSession() {
         loginDialogOpen.value = false;
     };
 
+    const showCreateAccountDialog = () => {
+        createLocalAccountDialogOpen.value = true;
+    };
+
+    const openCreateAccountDialog = () => {
+        resetCreateAccountDialog();
+        showCreateAccountDialog();
+    };
+
+    const closeCreateAccountDialog = () => {
+        createLocalAccountDialogOpen.value = false;
+    };
+
     const switchToCodeRequest = () => {
         loginMode.value = MODE_CODE_REQUEST;
         loginError.value = null;
@@ -138,6 +164,12 @@ export function useUserSession() {
 
     const switchToPasskey = () => {
         loginMode.value = MODE_PASSKEY;
+        loginError.value = null;
+        loginCode.value = "";
+    };
+
+    const switchToCreateAccount = () => {
+        loginMode.value = MODE_CREATE_ACCOUNT_LOCAL;
         loginError.value = null;
         loginCode.value = "";
     };
@@ -188,6 +220,25 @@ export function useUserSession() {
             showLoginDialog();
             loginError.value = i18n.getMessage("userLoginFailed");
             console.error("Login with passkey error:", error);
+        }
+    };
+
+    const handleCreateLocalAccount = async () => {
+        const email = loginEmail.value.trim();
+
+        if (!email) {
+            loginError.value = i18n.getMessage("userEmailRequired");
+            return;
+        }
+
+        try {
+            closeLoginDialog();
+            await loginManager.createLocalAccount(email);
+            openVerificationDialog(email);
+        } catch (error) {
+            showLoginDialog();
+            loginError.value = i18n.getMessage("userCreateAccountFailed");
+            console.error("Create local account error:", error);
         }
     };
 
@@ -339,12 +390,16 @@ export function useUserSession() {
         showWaitingDialog,
         hideWaitingDialog,
         closeLoginDialog,
+        closeCreateAccountDialog,
+        openCreateAccountDialog,
         switchToCodeRequest,
         switchToPasskey,
+        switchToCreateAccount,
         handleUsePasskey,
         handleCreatePasskey,
         handleRequestCode,
         handleVerifyCode,
+        handleCreateLocalAccount,
         closeVerificationDialog,
         handleVerificationSubmit,
     };
