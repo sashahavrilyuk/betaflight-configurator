@@ -101,6 +101,39 @@
                         </div>
                     </template>
 
+                    <!-- Create account mode -->
+                    <template v-else-if="loginMode === 'create-account'">
+                        <div class="dialog-field">
+                            <label for="login-email" class="dialog-label">{{ $t("labelEmail") }}</label>
+                            <UInput
+                                v-model="loginEmail"
+                                type="email"
+                                id="login-email"
+                                class="w-full"
+                                :placeholder="$t('placeholderEmailAddress')"
+                                @keyup.enter="handleCreateLocalAccount"
+                            />
+                        </div>
+                        <p v-if="loginError" class="dialog-error">{{ loginError }}</p>
+
+                        <UButton
+                            block
+                            :label="$t('labelCreateLocalAccount')"
+                            :loading="loginSubmitting"
+                            @click="handleCreateLocalAccount"
+                        />
+
+                        <div class="dialog-footer">
+                            <UButton
+                                variant="link"
+                                size="xs"
+                                color="neutral"
+                                :label="$t('labelBackToPasskey')"
+                                @click="switchToPasskey"
+                            />
+                        </div>
+                    </template>
+
                     <!-- Email-code request mode -->
                     <template v-else-if="loginMode === 'code-request'">
                         <div class="dialog-field">
@@ -198,138 +231,6 @@
                     </div>
                     <p v-if="verificationError" class="dialog-error">{{ verificationError }}</p>
                     <UButton block :label="$t('submit')" @click="handleVerificationSubmit" />
-                </template>
-            </UModal>
-
-            <UModal v-model:open="createLocalAccountDialogOpen" :ui="{ content: 'max-w-sm' }">
-                <template #header="{ close }">
-                    <div class="flex items-start justify-between gap-2 w-full">
-                        <div class="dialog-header-stack">
-                            <div class="dialog-logo" aria-hidden="true"></div>
-                            <h3 class="dialog-title">{{ loginTitle }}</h3>
-                            <p class="dialog-description">{{ loginDescription }}</p>
-                        </div>
-                        <UButton
-                            color="neutral"
-                            variant="ghost"
-                            icon="i-lucide-x"
-                            size="sm"
-                            :aria-label="$t('dialogClose')"
-                            @click="close"
-                        />
-                    </div>
-                </template>
-                <template #body>
-                    <!-- Passkey mode -->
-                    <template v-if="loginMode === 'passkey'">
-                        <div class="dialog-field">
-                            <label for="login-email" class="dialog-label">{{ $t("labelEmail") }}</label>
-                            <UInput
-                                v-model="loginEmail"
-                                type="email"
-                                id="login-email"
-                                class="w-full"
-                                :placeholder="$t('placeholderEmailAddress')"
-                                @keyup.enter="handleUsePasskey"
-                            />
-                        </div>
-                        <p v-if="loginError" class="dialog-error">{{ loginError }}</p>
-
-                        <UButton
-                            block
-                            icon="i-lucide-key-round"
-                            :label="$t('labelSignInWithPasskey')"
-                            @click="handleUsePasskey"
-                        />
-
-                        <div class="dialog-footer">
-                            <p class="dialog-hint">
-                                {{ $t("labelNoPasskeyPrompt") }}
-                                <UButton
-                                    variant="link"
-                                    size="xs"
-                                    :label="$t('labelSetOnePasskeyUp')"
-                                    @click="handleCreatePasskey"
-                                />
-                            </p>
-                            <UButton
-                                variant="link"
-                                size="xs"
-                                color="neutral"
-                                :label="$t('labelSignInWithEmailCode')"
-                                @click="switchToCodeRequest"
-                            />
-                            <UButton
-                                variant="link"
-                                size="xs"
-                                color="neutral"
-                                :label="$t('labelCreateLocalAccount')"
-                                @click="switchToCreateAccount"
-                            />
-                        </div>
-                    </template>
-
-                    <!-- Email-code request mode -->
-                    <template v-else-if="loginMode === 'code-request'">
-                        <div class="dialog-field">
-                            <label for="login-email-code" class="dialog-label">{{ $t("labelEmail") }}</label>
-                            <UInput
-                                v-model="loginEmail"
-                                type="email"
-                                id="login-email-code"
-                                class="w-full"
-                                :placeholder="$t('placeholderEmailAddress')"
-                                @keyup.enter="handleRequestCode"
-                            />
-                        </div>
-                        <p v-if="loginError" class="dialog-error">{{ loginError }}</p>
-
-                        <UButton
-                            block
-                            :label="$t('labelSendVerificationCode')"
-                            :loading="loginSubmitting"
-                            @click="handleRequestCode"
-                        />
-
-                        <div class="dialog-footer">
-                            <UButton
-                                variant="link"
-                                size="xs"
-                                color="neutral"
-                                :label="$t('labelBackToPasskey')"
-                                @click="switchToPasskey"
-                            />
-                        </div>
-                    </template>
-
-                    <!-- Email-code verify mode -->
-                    <template v-else-if="loginMode === 'code-verify'">
-                        <div class="dialog-field">
-                            <label for="login-code-input" class="dialog-label">{{ $t("labelVerificationCode") }}</label>
-                            <UInput
-                                v-model="loginCode"
-                                ref="loginCodeInputRef"
-                                id="login-code-input"
-                                type="password"
-                                maxlength="8"
-                                class="dialog-input-code w-full"
-                                @keyup.enter="handleVerifyCode"
-                            />
-                        </div>
-                        <p v-if="loginError" class="dialog-error">{{ loginError }}</p>
-
-                        <UButton block :label="$t('submit')" :loading="loginSubmitting" @click="handleVerifyCode" />
-
-                        <div class="dialog-footer">
-                            <UButton
-                                variant="link"
-                                size="xs"
-                                color="neutral"
-                                :label="$t('labelBack')"
-                                @click="switchToCodeRequest"
-                            />
-                        </div>
-                    </template>
                 </template>
             </UModal>
 

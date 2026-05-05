@@ -1,5 +1,4 @@
 import LoginApi from "./LoginApi";
-import * as fs from "fs";
 
 export default class UserApi {
     _url = "https://user.betaflight.com";
@@ -9,29 +8,34 @@ export default class UserApi {
         this._loginApi = loginApi;
     }
 
-    async _saveLocal(email) {
-        if (!email) {
-            throw new Error("Email is required");
-        }
+    _saveLocal(email) {
+        if (!email) throw new Error("Email is required");
 
-        const filePath = "./accounts.txt";
+        const accounts = JSON.parse(localStorage.getItem("accounts") || "[]");
 
-        let existing = "";
-        try {
-            existing = await fs.readFile(filePath, "utf-8");
-        } catch {}
-
-        const accounts = existing.split("\n").filter(Boolean);
-
-        if (accounts.includes(email)) {
-            throw new Error("Account already exists");
-        }
+        if (accounts.includes(email)) throw new Error("Account already exists");
 
         accounts.push(email);
-
-        await fs.writeFile(filePath, accounts.join("\n"));
+        localStorage.setItem("accounts", JSON.stringify(accounts));
 
         return { success: true, email };
+    }
+
+    _getLocalAccounts() {
+        return JSON.parse(localStorage.getItem("accounts") || "[]");
+    }
+
+    hasLocalAccount(email) {
+        if (!email) return false;
+        const accounts = this._getLocalAccounts();
+        return accounts.includes(email);
+    }
+
+    async getLocalProfile(email) {
+        if (!this.hasLocalAccount(email)) {
+            throw new Error("Local account not found");
+        }
+        return { email };
     }
 
     async _authHeaders() {

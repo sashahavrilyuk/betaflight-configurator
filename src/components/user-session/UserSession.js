@@ -24,7 +24,6 @@ export function useUserSession() {
     const codeEmail = ref("");
 
     const loginDialogOpen = ref(false);
-    const createLocalAccountDialogOpen = ref(false);
     const waitingDialogOpen = ref(false);
     const waitingMessage = ref("");
 
@@ -59,6 +58,9 @@ export function useUserSession() {
         }
         if (loginMode.value === MODE_CODE_VERIFY) {
             return i18n.getMessage("descriptionCodeEntered", [codeEmail.value]);
+        }
+        if (loginMode.value === MODE_CREATE_ACCOUNT_LOCAL) {
+            return i18n.getMessage("descriptionCreateAccount");
         }
         return i18n.getMessage("descriptionPasskeyLogin");
     });
@@ -143,19 +145,6 @@ export function useUserSession() {
         loginDialogOpen.value = false;
     };
 
-    const showCreateAccountDialog = () => {
-        createLocalAccountDialogOpen.value = true;
-    };
-
-    const openCreateAccountDialog = () => {
-        resetCreateAccountDialog();
-        showCreateAccountDialog();
-    };
-
-    const closeCreateAccountDialog = () => {
-        createLocalAccountDialogOpen.value = false;
-    };
-
     const switchToCodeRequest = () => {
         loginMode.value = MODE_CODE_REQUEST;
         loginError.value = null;
@@ -214,6 +203,12 @@ export function useUserSession() {
         loginError.value = null;
 
         try {
+            const didLocalLogin = await loginManager.loginLocalAccount(email);
+            if (didLocalLogin) {
+                closeLoginDialog();
+                return;
+            }
+
             closeLoginDialog();
             await loginManager.loginWithPasskey(email);
         } catch (error) {
@@ -232,9 +227,8 @@ export function useUserSession() {
         }
 
         try {
-            closeLoginDialog();
             await loginManager.createLocalAccount(email);
-            openVerificationDialog(email);
+            closeLoginDialog();
         } catch (error) {
             showLoginDialog();
             loginError.value = i18n.getMessage("userCreateAccountFailed");
@@ -390,8 +384,6 @@ export function useUserSession() {
         showWaitingDialog,
         hideWaitingDialog,
         closeLoginDialog,
-        closeCreateAccountDialog,
-        openCreateAccountDialog,
         switchToCodeRequest,
         switchToPasskey,
         switchToCreateAccount,

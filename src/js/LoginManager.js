@@ -1,5 +1,6 @@
 import { i18n } from "./localization";
 import { gui_log } from "./gui_log";
+import { get as getConfig, set as setConfig, remove as removeConfig } from "./ConfigStorage";
 import LoginApi from "./LoginApi";
 import UserApi from "./UserApi";
 import { switchTab } from "./tab_switch";
@@ -13,6 +14,7 @@ class LoginManager {
     _loginApi = new LoginApi();
     _userApi = new UserApi(this._loginApi);
     _profile = null;
+    _localSessionEmail = getConfig("localSession").localSession?.email || null;
     _onLoginCallbacks = [];
     _onLogoutCallbacks = [];
     _dialogOpener = null;
@@ -81,13 +83,36 @@ class LoginManager {
 
     async createLocalAccount(email) {
         try {
-            this.showWaitingDialog(i18n.getMessage("userCreatingAccount"));
             await this._userApi.createLocalAccount(email);
-            this.hideWaitingDialog();
+            await this.loginLocalAccount(email);
         } catch (error) {
             this.hideWaitingDialog();
             gui_log(`${i18n.getMessage("userCreateAccountFailed")}: ${error}`);
             console.error("Create local account error:", error);
+            throw error;
+        }
+    }
+
+    async loginLocalAccount(email) {
+        try {
+            this.showWaitingDialog(i18n.getMessage("userLoggingIn"));
+
+            if (!this._userApi.hasLocalAccount(email)) {
+                this.hideWaitingDialog();
+                return false;
+            }
+
+            this._localSessionEmail = email;
+            setConfig({ localSession: { email } });
+            this._profile = { email };
+            this.notifyLoginCallbacks();
+            this.hideWaitingDialog();
+            gui_log(i18n.getMessage("userLoginSuccess"));
+            return true;
+        } catch (error) {
+            this.hideWaitingDialog();
+            gui_log(`${i18n.getMessage("userLoginFailed")}: ${error}`);
+            console.error("Local login error:", error);
             throw error;
         }
     }
@@ -207,6 +232,11 @@ class LoginManager {
      */
     async fetchUserProfile() {
         try {
+            if (this._localSessionEmail) {
+                this._profile = { email: this._localSessionEmail };
+                return;
+            }
+
             if (await this._loginApi.checkToken()) {
                 const profile = await this._userApi.profile();
                 if (profile) {
@@ -224,6 +254,15 @@ class LoginManager {
      */
     async signOut() {
         try {
+            if (this._localSessionEmail) {
+                this._localSessionEmail = null;
+                removeConfig("localSession");
+                this._profile = null;
+                this.notifyLogoutCallbacks();
+                gui_log(i18n.getMessage("userSignedOut"));
+                return;
+            }
+
             await this._loginApi.signOut();
 
             this._profile = null;
@@ -325,6 +364,9 @@ class LoginManager {
      * Check if user is logged in
      */
     async isUserLoggedIn() {
+        if (this._localSessionEmail) {
+            return true;
+        }
         return await this._loginApi.isSignedIn();
     }
 
