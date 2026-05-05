@@ -138,7 +138,7 @@
         <!-- Bottom toolbar -->
         <div v-if="isConnected" class="content_toolbar toolbar_fixed_bottom flex items-center gap-2">
             <div class="flex-1"></div>
-            <UButton @click="createBackup" size="sm" icon="i-lucide-save">
+            <UButton @click="createBackup" :disabled="!isLoggedIn || isCreatingBackup" size="sm" icon="i-lucide-save">
                 {{ $t("actionBackup") }}
             </UButton>
         </div>
@@ -173,6 +173,8 @@ const dialog = useDialog();
 const isLoading = ref(true);
 const backups = ref([]);
 const backupMessage = ref(null);
+const isLoggedIn = ref(false);
+const isCreatingBackup = ref(false);
 const isEditing = ref(false);
 const editForm = ref({ id: null, name: "", description: "", created: null });
 const restoreProgress = ref(0);
@@ -231,10 +233,12 @@ async function loadBackups() {
 
     try {
         const loggedIn = await loginManager.isUserLoggedIn();
+        isLoggedIn.value = loggedIn;
+
         if (!loggedIn) {
             userApi = null;
             backups.value = [];
-            backupMessage.value = null;
+            backupMessage.value = t("userBackupLoginRequired");
             isLoading.value = false;
             return;
         }
@@ -255,7 +259,19 @@ async function createBackup() {
         return;
     }
 
+    const loggedIn = await loginManager.isUserLoggedIn();
+    if (!loggedIn) {
+        await dialog.showInfo(t("warningTitle"), t("userBackupLoginRequired"), {
+            confirmText: t("close"),
+        });
+        return;
+    }
+
+    isCreatingBackup.value = true;
+    const waitingDialog = dialog.showWait(t("actionBackup"), null);
+
     try {
+        userApi = userApi || loginManager.getUserApi();
         if (!userApi) {
             throw new Error(t("notLoggedIn"));
         }

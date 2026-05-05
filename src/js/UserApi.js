@@ -1,4 +1,6 @@
 import LoginApi from "./LoginApi";
+import { get as getConfig } from "./ConfigStorage";
+import { i18n } from "./localization";
 
 export default class UserApi {
     _url = "https://user.betaflight.com";
@@ -27,6 +29,37 @@ export default class UserApi {
 
     getLocalAccounts() {
         return this._getLocalAccounts();
+    }
+
+    _getLocalSessionEmail() {
+        const sessionConfig = getConfig("localSession") || {};
+        return sessionConfig.localSession?.email || null;
+    }
+
+    _getLocalBackupsKey(email) {
+        return `localBackups:${encodeURIComponent(email)}`;
+    }
+
+    _getLocalBackups(email) {
+        if (!email) return [];
+        return JSON.parse(localStorage.getItem(this._getLocalBackupsKey(email)) || "[]");
+    }
+
+    _saveLocalBackups(email, backups) {
+        localStorage.setItem(this._getLocalBackupsKey(email), JSON.stringify(backups));
+        return backups;
+    }
+
+    _generateLocalBackupId() {
+        if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+            return crypto.randomUUID();
+        }
+        return `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    _getLocalBackup(email, backupId) {
+        const backups = this._getLocalBackups(email);
+        return backups.find((backup) => backup.id === backupId) || null;
     }
 
     hasLocalAccount(email) {
@@ -160,6 +193,16 @@ export default class UserApi {
 
     /* User Backup Functionality */
     async getBackups() {
+        const localEmail = this._getLocalSessionEmail();
+        const tokenValid = await this._loginApi.checkToken().catch(() => false);
+
+        if (localEmail && !tokenValid) {
+            return {
+                backups: this._getLocalBackups(localEmail),
+                message: i18n.getMessage("userLocalBackupsMessage"),
+            };
+        }
+
         const authHeaders = await this._authHeaders();
         const response = await fetch(`${this._url}/api/backups`, {
             method: "GET",
@@ -175,6 +218,15 @@ export default class UserApi {
     }
 
     async deleteBackup(backupId) {
+        const localEmail = this._getLocalSessionEmail();
+        const tokenValid = await this._loginApi.checkToken().catch(() => false);
+
+        if (localEmail && !tokenValid) {
+            const backups = this._getLocalBackups(localEmail).filter((backup) => backup.id !== backupId);
+            this._saveLocalBackups(localEmail, backups);
+            return;
+        }
+
         const authHeaders = await this._authHeaders();
         const response = await fetch(`${this._url}/api/backups/${backupId}`, {
             method: "DELETE",
@@ -189,6 +241,25 @@ export default class UserApi {
     }
 
     async uploadBackup(data) {
+        const localEmail = this._getLocalSessionEmail();
+        const tokenValid = await this._loginApi.checkToken().catch(() => false);
+
+        if (localEmail && !tokenValid) {
+            const backups = this._getLocalBackups(localEmail);
+            const created = new Date().toISOString();
+            const backup = {
+                id: this._generateLocalBackupId(),
+                name: `Local Backup ${created}.txt`,
+                description: "",
+                created,
+                key: "Local",
+                file: data,
+            };
+            backups.unshift(backup);
+            this._saveLocalBackups(localEmail, backups);
+            return { backup };
+        }
+
         const authHeaders = await this._authHeaders();
         const response = await fetch(`${this._url}/api/backups/file`, {
             method: "POST",
@@ -206,6 +277,20 @@ export default class UserApi {
     }
 
     async downloadBackupFile(backupId) {
+        const localEmail = this._getLocalSessionEmail();
+        const tokenValid = await this._loginApi.checkToken().catch(() => false);
+
+        if (localEmail && !tokenValid) {
+            const backup = this._getLocalBackup(localEmail, backupId);
+            if (!backup) {
+                throw new Error("Backup not found");
+            }
+            return {
+                name: backup.name || "backup.txt",
+                file: backup.file || "",
+            };
+        }
+
         const authHeaders = await this._authHeaders();
         const response = await fetch(`${this._url}/api/backups/${backupId}/file`, {
             method: "GET",
@@ -241,6 +326,24 @@ export default class UserApi {
     }
 
     async updateBackup(backup) {
+        const localEmail = this._getLocalSessionEmail();
+        const tokenValid = await this._loginApi.checkToken().catch(() => false);
+
+        if (localEmail && !tokenValid) {
+            const backups = this._getLocalBackups(localEmail).map((item) => {
+                if (item.id !== backup.Id) {
+                    return item;
+                }
+                return {
+                    ...item,
+                    name: backup.name,
+                    description: backup.description,
+                };
+            });
+            this._saveLocalBackups(localEmail, backups);
+            return;
+        }
+
         const authHeaders = await this._authHeaders();
         const response = await fetch(`${this._url}/api/backups/${backup.Id}`, {
             method: "PUT",

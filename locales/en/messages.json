@@ -8246,6 +8246,9 @@
     "userBackupFileEmpty": {
         "message": "Backup file is empty"
     },
+    "userLocalBackupsMessage": {
+        "message": "These backups are stored locally for your account. They are saved in browser storage and can be downloaded if needed."
+    },
     "userBackupUpdateSuccess": {
         "message": "Backup updated successfully"
     },
@@ -8296,6 +8299,9 @@
     },
     "profileBackupEmptyResult": {
         "message": "Backup unsuccessful"
+    },
+    "userBackupLoginRequired": {
+        "message": "You must sign in before creating backups."
     },
     "labelLogin": {
         "message": "Login"
