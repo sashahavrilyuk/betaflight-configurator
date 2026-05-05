@@ -8324,6 +8324,9 @@
     "labelSignInWithEmailCode": {
         "message": "Sign in with email code instead"
     },
+    "labelSignInLocalAccount": {
+        "message": "Sign in with local account instead"
+    },
     "labelCreateLocalAccount": {
         "message": "Create new local account"
     },
@@ -8344,6 +8347,9 @@
     },
     "descriptionCreateAccount": {
         "message": "Create an account to be able to save your backups online and access them from any device"
+    },
+    "descriptionLocalAccount": {
+        "message": "Choose a local account to sign in without verification"
     },
     "descriptionCodeRequest": {
         "message": "We'll email you a verification code"
@@ -8377,6 +8383,9 @@
     },
     "userLoginFailed": {
         "message": "Login failed"
+    },
+    "userNoLocalAccounts": {
+        "message": "No local accounts found. Create one to get started."
     },
     "userCreatePasskeyFailed": {
         "message": "Failed to create passkey"

@@ -95,8 +95,51 @@
                                 variant="link"
                                 size="xs"
                                 color="neutral"
+                                :label="$t('labelSignInLocalAccount')"
+                                @click="switchToLocalAccount"
+                            />
+                            <UButton
+                                variant="link"
+                                size="xs"
+                                color="neutral"
                                 :label="$t('labelCreateLocalAccount')"
                                 @click="switchToCreateAccount"
+                            />
+                        </div>
+                    </template>
+
+                    <!-- Local account chooser -->
+                    <template v-else-if="loginMode === 'local-account'">
+                        <div class="dialog-field">
+                            <div class="dialog-label">{{ $t("labelSignInLocalAccount") }}</div>
+                            <div class="local-account-list">
+                                <UButton
+                                    v-for="email in localAccounts"
+                                    :key="email"
+                                    block
+                                    :label="email"
+                                    @click="handleLocalAccountLogin(email)"
+                                />
+                                <p v-if="!localAccounts.length" class="dialog-error">
+                                    {{ $t("userNoLocalAccounts") }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="dialog-footer">
+                            <UButton
+                                variant="link"
+                                size="xs"
+                                color="neutral"
+                                :label="$t('labelCreateLocalAccount')"
+                                @click="switchToCreateAccount"
+                            />
+                            <UButton
+                                variant="link"
+                                size="xs"
+                                color="neutral"
+                                :label="$t('labelBackToPasskey')"
+                                @click="switchToPasskey"
                             />
                         </div>
                     </template>

@@ -7,6 +7,7 @@ const MODE_PASSKEY = "passkey";
 const MODE_CODE_REQUEST = "code-request";
 const MODE_CODE_VERIFY = "code-verify";
 const MODE_CREATE_ACCOUNT_LOCAL = "create-account";
+const MODE_LOCAL_ACCOUNT = "local-account";
 
 export function useUserSession() {
     const isLoggedIn = ref(false);
@@ -22,6 +23,7 @@ export function useUserSession() {
     const loginSubmitting = ref(false);
     const loginCodeInputRef = ref(null);
     const codeEmail = ref("");
+    const localAccounts = ref([]);
 
     const loginDialogOpen = ref(false);
     const waitingDialogOpen = ref(false);
@@ -61,6 +63,9 @@ export function useUserSession() {
         }
         if (loginMode.value === MODE_CREATE_ACCOUNT_LOCAL) {
             return i18n.getMessage("descriptionCreateAccount");
+        }
+        if (loginMode.value === MODE_LOCAL_ACCOUNT) {
+            return i18n.getMessage("descriptionLocalAccount");
         }
         return i18n.getMessage("descriptionPasskeyLogin");
     });
@@ -130,6 +135,38 @@ export function useUserSession() {
         loginEmail.value = "";
         loginError.value = null;
         loginSubmitting.value = false;
+    };
+
+    const loadLocalAccounts = () => {
+        localAccounts.value = loginManager.getUserApi().getLocalAccounts();
+    };
+
+    const switchToLocalAccount = () => {
+        loginMode.value = MODE_LOCAL_ACCOUNT;
+        loginError.value = null;
+        loginCode.value = "";
+        loadLocalAccounts();
+    };
+
+    const handleLocalAccountLogin = async (email) => {
+        if (!email) {
+            loginError.value = i18n.getMessage("userEmailRequired");
+            return;
+        }
+
+        loginError.value = null;
+        try {
+            const success = await loginManager.loginLocalAccount(email);
+            if (success) {
+                closeLoginDialog();
+            } else {
+                loginError.value = i18n.getMessage("userLoginFailed");
+            }
+        } catch (error) {
+            showLoginDialog();
+            loginError.value = i18n.getMessage("userLoginFailed");
+            console.error("Local account login error:", error);
+        }
     };
 
     const showLoginDialog = () => {
@@ -378,6 +415,7 @@ export function useUserSession() {
         verificationCode,
         verificationInputRef,
         verificationDialogOpen,
+        localAccounts,
         handleLoginClick,
         toggleMenu,
         handleSignOut,
@@ -387,11 +425,13 @@ export function useUserSession() {
         switchToCodeRequest,
         switchToPasskey,
         switchToCreateAccount,
+        switchToLocalAccount,
         handleUsePasskey,
         handleCreatePasskey,
         handleRequestCode,
         handleVerifyCode,
         handleCreateLocalAccount,
+        handleLocalAccountLogin,
         closeVerificationDialog,
         handleVerificationSubmit,
     };

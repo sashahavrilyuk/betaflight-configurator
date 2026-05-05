@@ -25,6 +25,10 @@ export default class UserApi {
         return JSON.parse(localStorage.getItem("accounts") || "[]");
     }
 
+    getLocalAccounts() {
+        return this._getLocalAccounts();
+    }
+
     hasLocalAccount(email) {
         if (!email) return false;
         const accounts = this._getLocalAccounts();
