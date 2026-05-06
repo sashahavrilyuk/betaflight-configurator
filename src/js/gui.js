@@ -56,6 +56,7 @@ class GuiControl {
             "motors",
             "pid_tuning",
             "ports",
+            "checking",
             "receiver",
             "sensors",
             "log",

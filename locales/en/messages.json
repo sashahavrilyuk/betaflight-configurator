@@ -458,6 +458,9 @@
     "tabMotorTesting": {
         "message": "Motors"
     },
+    "tabChecking": {
+        "message": "Checking"
+    },
     "tabLedStrip": {
         "message": "LED Strip"
     },
@@ -2637,6 +2640,9 @@
     },
     "receiverModelPreview": {
         "message": "Preview"
+    },
+    "receiverPreviewNoData": {
+        "message": "Receiver preview data is not available yet."
     },
     "receiverMspWarningText": {
         "message": "These sticks allow Betaflight to be armed and tested without a transmitter or receiver being present. However, <strong>this feature is not intended for flight and propellers must not be attached.</strong><br /><br />This feature does not guarantee reliable control of your aircraft. <strong>Serious injury is likely to result if propellers are left on.</strong>"
