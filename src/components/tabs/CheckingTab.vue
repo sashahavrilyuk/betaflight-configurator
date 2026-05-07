@@ -627,15 +627,7 @@ const zeroThrottleValue = computed(() => {
     return minSliderValue.value;
 });
 
-const {
-    ports,
-    analyticsChanges,
-    getPortName,
-    vtxTableNotConfigured,
-    dirty,
-    isLoading: isLoadingPorts,
-    loadConfig,
-} = usePortsState(getRules);
+const { ports, analyticsChanges, getPortName, dirty, isLoading: isLoadingPorts, loadConfig } = usePortsState(getRules);
 const { saveConfig, onTelemetryChange, onPeripheralChange } = usePortsConfiguration(
     ports,
     analyticsChanges,
@@ -643,6 +635,7 @@ const { saveConfig, onTelemetryChange, onPeripheralChange } = usePortsConfigurat
 );
 
 const meterScale = { min: 800, max: 2200 };
+const receiverActiveChannels = computed(() => fcStore.rc?.active_channels ?? 0);
 const receiverChannelBars = computed(() => {
     const bars = [];
     const barNames = [
@@ -652,7 +645,7 @@ const receiverChannelBars = computed(() => {
         i18n.getMessage("controlAxisThrottle"),
     ];
     const channels = fcStore.rc?.channels || [];
-    const activeChannels = fcStore.rc?.active_channels || 8;
+    const activeChannels = receiverActiveChannels.value || 8;
     const numBars = activeChannels > 0 ? activeChannels : 8;
     let auxIndex = 1;
 
@@ -664,8 +657,6 @@ const receiverChannelBars = computed(() => {
     }
     return bars;
 });
-
-const receiverActiveChannels = computed(() => fcStore.rc?.active_channels || 8);
 
 function initModelPreview() {
     if (!modelPreviewContainer.value || !modelCanvas.value) return;
@@ -732,7 +723,7 @@ function renderModel() {
 }
 
 const { addInterval } = useInterval();
-const { addTimeout, removeTimeout } = useTimeout();
+const { addTimeout } = useTimeout();
 
 const isLoadingBackups = ref(true);
 const backups = ref([]);
@@ -761,8 +752,12 @@ const dialogSettingsChanged = ref(null);
 
 const motorsState = useMotorsState();
 const { configHasChanged } = motorsState;
-const { motorsTestingEnabled, motorValues, masterValue, slidersDisabled, sendMotorCommand, stopAllMotors } =
-    useMotorTesting(configHasChanged, showWarningDialog, digitalProtocolConfigured, zeroThrottleValue);
+const { motorsTestingEnabled, motorValues, masterValue, slidersDisabled, sendMotorCommand } = useMotorTesting(
+    configHasChanged,
+    showWarningDialog,
+    digitalProtocolConfigured,
+    zeroThrottleValue,
+);
 
 const { setupConfigWatchers } = useMotorConfiguration(motorsState, motorsTestingEnabled, () => {
     motorsTestingEnabled.value = false;
@@ -1279,10 +1274,6 @@ function showWarningDialog(message) {
     dialogSettingsChanged.value?.showModal();
 }
 
-function closeWarningDialog() {
-    dialogSettingsChanged.value?.close();
-}
-
 const warningMessage = ref("");
 const reverseMotorDir = computed({
     get: () => fcStore.mixerConfig.reverseMotorDir === 1,
@@ -1463,7 +1454,7 @@ const getTelemetryHtml = (index) => {
         html += `<br><span class="${errorClass}">Err: ${(invalid / 100).toFixed(2)}%</span>`;
     }
     if (fcStore.motorTelemetryData.temperature) {
-        html += `<br>Temp: ${fcStore.motorTelemetryData.temperature[index]}°C`;
+        html += `<br>Temp: ${fcStore.motorTelemetryData.temperature[index]}&deg;C`;
     }
     return html;
 };
@@ -1532,6 +1523,135 @@ function onCalibrateAccel() {
 </script>
 
 <style scoped>
+.content_wrapper {
+    padding-bottom: 60px;
+}
+
+.bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-weight: bold;
+    ul {
+        display: flex;
+        gap: 0.5rem;
+        &:nth-of-type(1) {
+            :deep([data-slot="indicator"]) {
+                background-color: #f1453d;
+            }
+        }
+        &:nth-of-type(2) {
+            :deep([data-slot="indicator"]) {
+                background-color: #673fb4;
+            }
+        }
+        &:nth-of-type(3) {
+            :deep([data-slot="indicator"]) {
+                background-color: #2b98f0;
+            }
+        }
+        &:nth-of-type(4) {
+            :deep([data-slot="indicator"]) {
+                background-color: #1fbcd2;
+            }
+        }
+        &:nth-of-type(5) {
+            :deep([data-slot="indicator"]) {
+                background-color: #159588;
+            }
+        }
+        &:nth-of-type(6) {
+            :deep([data-slot="indicator"]) {
+                background-color: #50ae55;
+            }
+        }
+        &:nth-of-type(7) {
+            :deep([data-slot="indicator"]) {
+                background-color: #cdda49;
+            }
+        }
+        &:nth-of-type(8) {
+            :deep([data-slot="indicator"]) {
+                background-color: #fdc02f;
+            }
+        }
+        &:nth-of-type(9) {
+            :deep([data-slot="indicator"]) {
+                background-color: #fc5830;
+            }
+        }
+        &:nth-of-type(10) {
+            :deep([data-slot="indicator"]) {
+                background-color: #785549;
+            }
+        }
+        &:nth-of-type(11) {
+            :deep([data-slot="indicator"]) {
+                background-color: #9e9e9e;
+            }
+        }
+        &:nth-of-type(12) {
+            :deep([data-slot="indicator"]) {
+                background-color: #617d8a;
+            }
+        }
+        &:nth-of-type(13) {
+            :deep([data-slot="indicator"]) {
+                background-color: #cf267d;
+            }
+        }
+        &:nth-of-type(14) {
+            :deep([data-slot="indicator"]) {
+                background-color: #7a1464;
+            }
+        }
+        &:nth-of-type(15) {
+            :deep([data-slot="indicator"]) {
+                background-color: #3a7a14;
+            }
+        }
+        &:nth-of-type(16) {
+            :deep([data-slot="indicator"]) {
+                background-color: #14407a;
+            }
+        }
+    }
+    .name {
+        width: 5rem;
+        text-align: right;
+    }
+    .meter {
+        width: 100%;
+    }
+    .meter-bar {
+        position: relative;
+        container-type: inline-size;
+        width: 100%;
+        height: 1rem;
+        border: 1px solid var(--surface-500);
+        background-color: var(--surface-200);
+        border-radius: 0.3rem;
+        .label {
+            position: absolute;
+            width: 50px;
+            text-align: center;
+            left: calc(50cqi - 25px);
+            color: var(--text);
+        }
+        .fill {
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.3rem;
+            width: 50%;
+            height: 1rem;
+            background-color: var(--primary-500);
+            .label {
+                color: white;
+            }
+        }
+    }
+}
+
 .backups_cli_background {
     border: 1px solid var(--ui-border);
     background-color: rgba(64, 64, 64, 1);

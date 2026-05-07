@@ -376,6 +376,9 @@
     "tabMotorTesting": {
         "message": "Motor styring"
     },
+    "tabChecking": {
+        "message": "Kontrol"
+    },
     "tabLedStrip": {
         "message": "LED-strimmel"
     },

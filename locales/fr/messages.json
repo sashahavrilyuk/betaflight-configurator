@@ -307,6 +307,9 @@
     "tabMotorTesting": {
         "message": "Moteurs"
     },
+    "tabChecking": {
+        "message": "Vérification"
+    },
     "tabLedStrip": {
         "message": "Bandeau LED"
     },

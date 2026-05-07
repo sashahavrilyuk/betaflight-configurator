@@ -208,6 +208,9 @@
     "tabMotorTesting": {
         "message": "Motoreak"
     },
+    "tabChecking": {
+        "message": "Comprobación"
+    },
     "tabLedStrip": {
         "message": "LED Zerrenda"
     },

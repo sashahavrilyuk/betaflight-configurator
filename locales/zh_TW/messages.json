@@ -205,6 +205,9 @@
     "tabMotorTesting": {
         "message": "電機"
     },
+    "tabChecking": {
+        "message": "檢查"
+    },
     "tabLedStrip": {
         "message": "LED 燈帶"
     },

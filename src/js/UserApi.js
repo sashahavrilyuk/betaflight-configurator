@@ -1,6 +1,5 @@
 import LoginApi from "./LoginApi";
 import { get as getConfig } from "./ConfigStorage";
-import { i18n } from "./localization";
 
 export default class UserApi {
     _url = "https://user.betaflight.com";
@@ -199,7 +198,6 @@ export default class UserApi {
         if (localEmail && !tokenValid) {
             return {
                 backups: this._getLocalBackups(localEmail),
-                message: i18n.getMessage("userLocalBackupsMessage"),
             };
         }
 

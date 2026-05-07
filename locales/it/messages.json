@@ -372,6 +372,9 @@
     "tabMotorTesting": {
         "message": "Motori"
     },
+    "tabChecking": {
+        "message": "Verifica"
+    },
     "tabLedStrip": {
         "message": "Striscia LED"
     },

@@ -350,6 +350,9 @@
     "tabMotorTesting": {
         "message": "모터"
     },
+    "tabChecking": {
+        "message": "체크"
+    },
     "tabLedStrip": {
         "message": "LED 스트립"
     },

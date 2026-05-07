@@ -249,6 +249,9 @@
     "tabMotorTesting": {
         "message": "Motores"
     },
+    "tabChecking": {
+        "message": "Verificación"
+    },
     "tabLedStrip": {
         "message": "Tira de LEDS"
     },

@@ -376,6 +376,9 @@
     "tabMotorTesting": {
         "message": "Silniki"
     },
+    "tabChecking": {
+        "message": "Sprawdzanie"
+    },
     "tabLedStrip": {
         "message": "Paski LED\/RGB"
     },

@@ -353,6 +353,9 @@
     "tabMotorTesting": {
         "message": "Мотори"
     },
+    "tabChecking": {
+        "message": "Перевірка"
+    },
     "tabLedStrip": {
         "message": "LED стрічка"
     },
