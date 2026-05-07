@@ -6,77 +6,135 @@
                 <WikiButton docUrl="checking" />
             </div>
 
-            <!-- BACKUPS SECTION -->
-            <UiBox :title="$t('tabBackups')">
-                <div v-if="isLoadingBackups" class="flex items-center justify-center py-16">
-                    <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-[var(--color-primary-500)]" />
-                    <span class="ml-2 text-dimmed">{{ $t("dataWaitingForData") }}</span>
-                </div>
-
-                <template v-else>
-                    <UiBox v-if="backupMessage" type="neutral">
-                        <p>{{ backupMessage }}</p>
-                    </UiBox>
-
-                    <div v-if="backups.length === 0" class="text-dimmed text-sm py-4">
-                        {{ $t("backupNoBackupsAvailable") }}
+            <div class="grid-box col2 gap-4">
+                <!-- BACKUPS SECTION -->
+                <UiBox :title="$t('tabBackups')">
+                    <div v-if="isLoadingBackups" class="flex items-center justify-center py-16">
+                        <UIcon
+                            name="i-lucide-loader-circle"
+                            class="size-5 animate-spin text-[var(--color-primary-500)]"
+                        />
+                        <span class="ml-2 text-dimmed">{{ $t("dataWaitingForData") }}</span>
                     </div>
 
-                    <template v-for="(groupBackups, craft) in groupedBackups" :key="craft">
-                        <div class="mb-4">
-                            <div class="text-sm font-bold text-[var(--color-primary-500)] mb-1">{{ craft }}</div>
-                            <UTable :data="groupBackups" :columns="columns" class="text-sm">
-                                <template #created-cell="{ row }">
-                                    {{ formatDate(row.original.created) }}
-                                </template>
-                                <template #description-cell="{ row }">
-                                    <span class="text-dimmed">{{ row.original.description || "" }}</span>
-                                </template>
-                                <template #actions-cell="{ row }">
-                                    <div class="flex flex-wrap gap-2">
-                                        <UButton
-                                            size="xs"
-                                            variant="soft"
-                                            icon="i-lucide-download"
-                                            @click="downloadBackup(row.original)"
-                                        >
-                                            {{ $t("actionDownload") }}
-                                        </UButton>
-                                        <UButton
-                                            v-if="isConnected"
-                                            size="xs"
-                                            variant="soft"
-                                            color="success"
-                                            icon="i-lucide-upload"
-                                            :disabled="isRestoreBusy"
-                                            @click="restoreBackup(row.original)"
-                                        >
-                                            {{ $t("actionRestore") }}
-                                        </UButton>
-                                        <UButton
-                                            size="xs"
-                                            variant="soft"
-                                            icon="i-lucide-pencil"
-                                            @click="startEdit(row.original)"
-                                        >
-                                            {{ $t("actionEdit") }}
-                                        </UButton>
-                                        <UButton
-                                            size="xs"
-                                            variant="soft"
-                                            color="error"
-                                            icon="i-lucide-trash-2"
-                                            @click="deleteBackup(row.original.id)"
-                                        >
-                                            {{ $t("actionDelete") }}
-                                        </UButton>
-                                    </div>
-                                </template>
-                            </UTable>
+                    <template v-else>
+                        <UiBox v-if="backupMessage" type="neutral">
+                            <p>{{ backupMessage }}</p>
+                        </UiBox>
+
+                        <div v-if="backups.length === 0" class="text-dimmed text-sm py-4">
+                            {{ $t("backupNoBackupsAvailable") }}
                         </div>
+
+                        <template v-for="(groupBackups, craft) in groupedBackups" :key="craft">
+                            <div class="mb-4">
+                                <div class="text-sm font-bold text-[var(--color-primary-500)] mb-1">{{ craft }}</div>
+                                <UTable :data="groupBackups" :columns="columns" class="text-sm">
+                                    <template #created-cell="{ row }">
+                                        {{ formatDate(row.original.created) }}
+                                    </template>
+                                    <template #description-cell="{ row }">
+                                        <span class="text-dimmed">{{ row.original.description || "" }}</span>
+                                    </template>
+                                    <template #actions-cell="{ row }">
+                                        <div class="flex flex-wrap gap-2">
+                                            <UButton
+                                                size="xs"
+                                                variant="soft"
+                                                icon="i-lucide-download"
+                                                @click="downloadBackup(row.original)"
+                                            >
+                                                {{ $t("actionDownload") }}
+                                            </UButton>
+                                            <UButton
+                                                v-if="isConnected"
+                                                size="xs"
+                                                variant="soft"
+                                                color="success"
+                                                icon="i-lucide-upload"
+                                                :disabled="isRestoreBusy"
+                                                @click="restoreBackup(row.original)"
+                                            >
+                                                {{ $t("actionRestore") }}
+                                            </UButton>
+                                            <UButton
+                                                size="xs"
+                                                variant="soft"
+                                                icon="i-lucide-pencil"
+                                                @click="startEdit(row.original)"
+                                            >
+                                                {{ $t("actionEdit") }}
+                                            </UButton>
+                                            <UButton
+                                                size="xs"
+                                                variant="soft"
+                                                color="error"
+                                                icon="i-lucide-trash-2"
+                                                @click="deleteBackup(row.original.id)"
+                                            >
+                                                {{ $t("actionDelete") }}
+                                            </UButton>
+                                        </div>
+                                    </template>
+                                </UTable>
+                            </div>
+                        </template>
                     </template>
-                </template>
-            </UiBox>
+                </UiBox>
+
+                <!-- INFO SECTION -->
+                <UiBox :title="$t('initialSetupInfoHead')" :help="$t('initialSetupInfoHeadHelp')">
+                    <InfoGrid
+                        :items="[
+                            {
+                                id: 'arming-disable-flag',
+                                i18n: 'initialSetupArmingDisableFlags',
+                                slotName: 'arming-disable-flag',
+                            },
+                            {
+                                i18n: 'initialSetupBattery',
+                                value: state.batVoltage,
+                                class: 'bat-voltage',
+                            },
+                            {
+                                i18n: 'initialSetupDrawn',
+                                value: state.batMahDrawn,
+                                class: 'bat-mah-drawn',
+                            },
+                            {
+                                i18n: 'initialSetupDrawing',
+                                value: state.batMahDrawing,
+                                class: 'bat-mah-drawing',
+                            },
+                            { i18n: 'initialSetupRSSI', value: state.rssi, class: 'rssi' },
+                            {
+                                id: 'mcu',
+                                i18n: 'initialSetupMCU',
+                                value: state.mcu,
+                                class: 'mcu',
+                            },
+                            {
+                                id: 'cpu-temp',
+                                i18n: 'initialSetupCpuTemp',
+                                value: state.cpuTemp,
+                                class: 'cpu-temp',
+                            },
+                        ]"
+                        gridClass="system_info"
+                    >
+                        <template #arming-disable-flag>
+                            <template v-for="flag in fcStore.armingFlags" :key="flag.id">
+                                <UTooltip v-if="flag.visible" :text="flag.tooltip">
+                                    <span class="disarm-flag">{{ flag.name }}</span>
+                                </UTooltip>
+                            </template>
+                            <span v-show="fcStore.isReadyToArm" id="initialSetupArmingAllowed">{{
+                                $t("initialSetupArmingAllowed")
+                            }}</span>
+                        </template>
+                    </InfoGrid>
+                </UiBox>
+            </div>
 
             <!-- ACCEL CALIBRATION -->
             <UiBox :title="$t('initialSetupButtonCalibrateAccel')">
@@ -245,9 +303,8 @@
                         </div>
 
                         <div class="p-3 border border-red-500/30 rounded-md bg-red-500/5">
-                            <p class="text-sm mb-2" v-html="$t('motorsNotice')"></p>
                             <SettingRow :label="$t('motorsEnableControl')" full-width>
-                                <USwitch v-model="motorsTestingEnabled" size="sm" />
+                                <USwitch v-model="motorsTestingEnabled" size="xl" />
                             </SettingRow>
                         </div>
                     </UiBox>
@@ -454,23 +511,6 @@
             </div>
         </div>
 
-        <div class="content_toolbar toolbar_fixed_bottom flex items-center gap-2">
-            <UButton
-                :label="$t('actionBackup')"
-                :disabled="!isLoggedIn || isCreatingBackup"
-                size="sm"
-                icon="i-lucide-save"
-                @click="createBackup"
-            />
-            <UButton :label="$t('configurationButtonSave')" :disabled="!dirty" @click="saveConfig" />
-            <UButton
-                :label="$t('escDshotDirectionDialog-StopWizard')"
-                :disabled="!motorsTestingEnabled"
-                color="error"
-                @click="stopMotors"
-            />
-        </div>
-
         <!-- Edit Dialog -->
         <Dialog v-model="isEditing" :title="$t('titleEditBackup')">
             <div class="flex flex-col gap-3">
@@ -524,18 +564,38 @@
                 <UButton :label="$t('presetsSaveAnyway')" @click="closeRestoreErrors(true)" />
             </div>
         </dialog>
+
+        <!-- Fixed Bottom Toolbar -->
+        <div class="content_toolbar toolbar_fixed_bottom flex items-center gap-2">
+            <UButton
+                :label="$t('actionBackup')"
+                :disabled="!isLoggedIn || isCreatingBackup"
+                size="sm"
+                icon="i-lucide-save"
+                @click="createBackup"
+            />
+            <UButton :label="$t('configurationButtonSave')" :disabled="!dirty" @click="saveConfig" />
+            <UButton
+                :label="$t('escDshotDirectionDialog-StopWizard')"
+                :disabled="!motorsTestingEnabled"
+                color="error"
+                @click="stopMotors"
+            />
+        </div>
     </BaseTab>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, watchEffect, reactive } from "vue";
 import { useMediaQuery } from "@vueuse/core";
 import BaseTab from "./BaseTab.vue";
+import { useTranslation } from "i18next-vue";
 import UiBox from "../elements/UiBox.vue";
 import SettingRow from "../elements/SettingRow.vue";
 import Dialog from "../elements/Dialog.vue";
 import WikiButton from "../elements/WikiButton.vue";
 import HelpIcon from "../elements/HelpIcon.vue";
+import InfoGrid from "@/components/InfoGrid.vue";
 import loginManager from "@/js/LoginManager";
 import { gui_log } from "@/js/gui_log";
 import { useConnectionStore } from "@/stores/connection";
@@ -569,7 +629,12 @@ import Model from "@/js/model";
 import RateCurve from "@/js/RateCurve";
 import EscProtocols from "@/js/utils/EscProtocols";
 import { degToRad } from "@/js/utils/common";
+import { addArrayElementsAfter, replaceArrayElement } from "../../js/utils/array";
 import { have_sensor } from "@/js/sensor_helpers";
+import semver from "semver";
+import { API_VERSION_1_46, API_VERSION_1_47 } from "@/js/data_storage";
+
+const { t } = useTranslation();
 
 const connectionStore = useConnectionStore();
 const cliSession = useMspCliSession();
@@ -744,8 +809,33 @@ let unsubscribeLogin = null;
 let unsubscribeLogout = null;
 
 const state = ref({
+    batVoltage: "0 V",
+    batMahDrawn: "0 mAh",
+    batMahDrawing: "0 A",
+    rssi: "0 %",
+    cpuTemp: "0 °C",
+    mcu: "",
     calibratingAccel: false,
     disabledAccel: false,
+});
+
+watchEffect(() => {
+    const voltage = fcStore.analogData?.voltage ?? 0;
+    const mAhdrawn = fcStore.analogData?.mAhdrawn ?? 0;
+    const amperage = fcStore.analogData?.amperage ?? 0;
+    const rssiValue = fcStore.analogData?.rssi ?? 0;
+
+    state.value.batVoltage = i18n.getMessage("initialSetupBatteryValue", { 1: voltage });
+    state.value.batMahDrawn = i18n.getMessage("initialSetupBatteryMahValue", { 1: mAhdrawn });
+    state.value.batMahDrawing = i18n.getMessage("initialSetupBatteryAValue", { 1: amperage.toFixed(2) });
+    state.value.rssi = i18n.getMessage("initialSetupRSSIValue", {
+        1: ((rssiValue / 1023) * 100).toFixed(0),
+    });
+
+    state.value.cpuTemp = fcStore.config?.cpuTemp
+        ? `${fcStore.config.cpuTemp.toFixed(0)} °C`
+        : i18n.getMessage("initialSetupCpuTempNotSupported");
+    state.value.mcu = fcStore.mcuInfo?.name || "";
 });
 
 const dialogSettingsChanged = ref(null);
@@ -1462,6 +1552,109 @@ const getTelemetryHtml = (index) => {
 const stopMotors = () => {
     motorsTestingEnabled.value = false;
 };
+
+const disarmFlagElements = [
+    "NO_GYRO",
+    "FAILSAFE",
+    "RX_FAILSAFE",
+    "NOT_DISARMED",
+    "BOXFAILSAFE",
+    "RUNAWAY_TAKEOFF",
+    "CRASH_DETECTED",
+    "THROTTLE",
+    "ANGLE",
+    "BOOT_GRACE_TIME",
+    "NOPREARM",
+    "LOAD",
+    "CALIBRATING",
+    "CLI",
+    "CMS_MENU",
+    "BST",
+    "MSP",
+    "PARALYZE",
+    "GPS",
+    "RESC",
+    "RPMFILTER",
+    "REBOOT_REQUIRED",
+    "DSHOT_BITBANG",
+    "ACC_CALIBRATION",
+    "MOTOR_PROTOCOL",
+];
+
+const prepareDisarmFlags = function () {
+    const cfg = fcStore.config;
+    const elements = [...disarmFlagElements];
+
+    if (semver.gte(cfg.apiVersion, API_VERSION_1_46)) {
+        replaceArrayElement(elements, "RPMFILTER", "DSHOT_TELEM");
+    }
+
+    if (semver.gte(cfg.apiVersion, API_VERSION_1_47)) {
+        addArrayElementsAfter(elements, "MOTOR_PROTOCOL", ["CRASHFLIP", "ALTHOLD", "POSHOLD"]);
+    }
+
+    // Build arming flags state instead of manipulating DOM
+    const flags = Array.from({ length: cfg.armingDisableCount }, (_, i) => {
+        const isLastBit = i === cfg.armingDisableCount - 1;
+        const knownName = elements[i];
+
+        // 1. Determine the raw name and whether it is a fallback numeric ID
+        // We prioritize the "ARM_SWITCH" for the last bit, then known elements, then numeric fallback.
+        let rawName;
+        let isFallback = false;
+
+        if (isLastBit) {
+            rawName = "ARM_SWITCH";
+        } else if (knownName) {
+            rawName = knownName;
+        } else {
+            rawName = `${i + 1}`;
+            isFallback = true;
+        }
+
+        // 2. Handle display name overrides (e.g., RX_FAILSAFE -> RXLOSS)
+        const nameMap = { RX_FAILSAFE: "RXLOSS", NOT_DISARMED: "BAD_RX_RECOVERY" };
+        const displayName = nameMap[rawName] || rawName;
+
+        // 3. Construct tooltip, if it's a fallback, we use the base key; otherwise, we append the rawName.
+        const messageKey = isFallback
+            ? "initialSetupArmingDisableFlagsTooltip"
+            : `initialSetupArmingDisableFlagsTooltip${rawName}`;
+
+        return reactive({
+            id: `initialSetupArmingDisableFlags${i}`,
+            name: displayName,
+            tooltip: t(messageKey),
+            visible: false,
+        });
+    });
+
+    fcStore.setArmingFlags(flags);
+
+    // Initial update
+    fcStore.updateArmingFlags(cfg.armingDisableFlags);
+};
+
+// Watch for armingDisableCount changes to rebuild the arming flags array
+const stopArmingCount = watch(
+    () => fcStore.config.armingDisableCount,
+    (newCount) => {
+        if (newCount > 0) {
+            prepareDisarmFlags();
+        }
+    },
+);
+
+const stopArmingFlags = watch(
+    () => fcStore.config.armingDisableFlags,
+    (newVal) => {
+        fcStore.updateArmingFlags(newVal);
+    },
+);
+
+if (fcStore.config.armingDisableCount > 0) {
+    prepareDisarmFlags();
+}
 
 let bufferingSetMotor = [];
 let bufferDelay = null;
