@@ -6,7 +6,7 @@
                 <WikiButton docUrl="checking" />
             </div>
 
-            <div class="grid-box col2 gap-4">
+            <div class="grid-box col2 gap-4 backups-info-grid">
                 <!-- BACKUPS SECTION -->
                 <UiBox :title="$t('tabBackups')">
                     <div v-if="isLoadingBackups" class="flex items-center justify-center py-16">
@@ -1720,11 +1720,19 @@ function onCalibrateAccel() {
     padding-bottom: 60px;
 }
 
+.grid-box.backups-info-grid {
+    grid-template-columns: minmax(0, 2.4fr) minmax(280px, 1fr);
+}
+
 .content_wrapper .grid-box > * {
     min-width: 0;
 }
 
 @media only screen and (max-width: 1055px) {
+    .grid-box.backups-info-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     .content_wrapper .grid-box.col2 {
         grid-template-columns: minmax(0, 1fr);
     }
