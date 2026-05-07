@@ -108,5 +108,6 @@ export function usePortsState(getRules) {
         vtxTableNotConfigured,
         dirty,
         isLoading,
+        loadConfig,
     };
 }

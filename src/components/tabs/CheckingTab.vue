@@ -634,6 +634,7 @@ const {
     vtxTableNotConfigured,
     dirty,
     isLoading: isLoadingPorts,
+    loadConfig,
 } = usePortsState(getRules);
 const { saveConfig, onTelemetryChange, onPeripheralChange } = usePortsConfiguration(
     ports,
@@ -889,6 +890,16 @@ const groupedBackups = computed(() => {
 });
 
 const isConnected = computed(() => connectionStore.connectionValid);
+
+watch(
+    () => connectionStore.connectionValid,
+    (isValid) => {
+        if (isValid) {
+            loadConfig();
+        }
+    },
+);
+
 const isRestoreBusy = computed(
     () => restoreProgressOpen.value || restoreErrorsOpen.value || cliSession.isBatchRunning.value,
 );
@@ -919,11 +930,7 @@ const peripheralItems = computed(() => [
 const tabReady = ref(false);
 
 onMounted(async () => {
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            tabReady.value = true;
-        });
-    });
+    tabReady.value = true;
 
     loadBackups();
     unsubscribeLogin = loginManager.onLogin(() => loadBackups());
@@ -952,6 +959,7 @@ onMounted(async () => {
     }
     await MSP.promise(MSPCodes.MSP_MOTOR_3D_CONFIG);
     await MSP.promise(MSPCodes.MSP2_MOTOR_OUTPUT_REORDERING);
+    await MSP.promise(MSPCodes.MSP_ADVANCED_CONFIG);
 
     motorsState.initializeDefaults();
     setupConfigWatchers();
