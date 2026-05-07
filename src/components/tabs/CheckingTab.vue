@@ -1720,6 +1720,16 @@ function onCalibrateAccel() {
     padding-bottom: 60px;
 }
 
+.content_wrapper .grid-box > * {
+    min-width: 0;
+}
+
+@media only screen and (max-width: 1055px) {
+    .content_wrapper .grid-box.col2 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .bars {
     display: flex;
     flex-direction: column;
@@ -1843,6 +1853,11 @@ function onCalibrateAccel() {
             }
         }
     }
+}
+
+.disarm-flag {
+    padding-right: 5px;
+    display: inline-block;
 }
 
 .backups_cli_background {
