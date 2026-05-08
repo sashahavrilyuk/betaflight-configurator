@@ -303,6 +303,9 @@
     "tabSetup": {
         "message": "Setup"
     },
+    "tabChecking": {
+        "message": "Checking"
+    },
     "tabSetupOSD": {
         "message": "OSD Setup"
     },

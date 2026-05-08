@@ -571,7 +571,25 @@ async function processBuildConfiguration() {
     if (supported) {
         // get build key from firmware
         await MSP.promise(MSPCodes.MSP2_GET_TEXT, mspHelper.crunch(MSPCodes.MSP2_GET_TEXT, MSPCodes.BUILD_KEY));
-        gui_log(i18n.getMessage('buildKey', FC.CONFIG.buildKey));
+        gui_log(i18n.getMessage("buildKey", FC.CONFIG.buildKey));
+
+        // firmware 1_45 or higher is required to support cloud build options
+        // firmware 1_46 or higher retrieves build options from the flight controller
+        if (FC.CONFIG.buildKey.length === 32 && ispConnected()) {
+            const buildApi = new BuildApi();
+            try {
+                const optionsResponse = await buildApi.requestBuildOptions(FC.CONFIG.buildKey);
+                const requestOptions = optionsResponse?.Request?.Options;
+
+                if (Array.isArray(requestOptions)) {
+                    FC.CONFIG.buildOptions = requestOptions;
+                } else if (optionsResponse && requestOptions === undefined) {
+                    console.warn("Build options response missing Request.Options:", optionsResponse);
+                }
+            } catch (error) {
+                console.error("Failed to request build options: ", error);
+            }
+        }
     }
 
     processBuildOptions();

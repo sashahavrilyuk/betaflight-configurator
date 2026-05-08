@@ -25,7 +25,15 @@ setup.initialize = function (callback) {
     }
 
     function load_status() {
-        MSP.send_message(MSPCodes.MSP_STATUS_EX, false, false, load_mixer_config);
+        MSP.send_message(MSPCodes.MSP_STATUS_EX, false, false, mcu_info);
+    }
+
+    function mcu_info() {
+        if (semver.gte(FC.CONFIG.apiVersion, API_VERSION_1_47)) {
+            MSP.send_message(MSPCodes.MSP2_MCU_INFO, false, false, load_mixer_config);
+        } else {
+            load_mixer_config();
+        }
     }
 
     function load_mixer_config() {

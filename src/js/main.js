@@ -396,10 +396,11 @@ function startProcess() {
                             setup.initialize(content_ready),
                         );
                         break;
-                    case 'setup_osd':
-                        import("./tabs/setup_osd").then(({ setup_osd }) =>
-                            setup_osd.initialize(content_ready),
-                        );
+                    case "checking":
+                        mountVueTab("checking", content_ready);
+                        break;
+                    case "setup_osd":
+                        import("./tabs/setup_osd").then(({ setup_osd }) => setup_osd.initialize(content_ready));
                         break;
                     case 'configuration':
                         import("./tabs/configuration").then(({ configuration }) =>

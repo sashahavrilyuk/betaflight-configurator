@@ -26,12 +26,29 @@ class GuiControl {
         this.timeout_array = [];
         this.buttonDisabledClass = "disabled";
 
-        this.defaultAllowedTabsWhenDisconnected = [
-            'landing',
-            'firmware_flasher',
-            'privacy_policy',
-            'options',
-            'help',
+        this.reboot_timestamp = 0;
+        this.REBOOT_CONNECT_MAX_TIME_MS = 10000;
+
+        this.defaultAllowedTabsWhenDisconnected = ["landing", "firmware_flasher", "privacy_policy", "options", "help"];
+
+        this.defaultAllowedTabs = [
+            "checking",
+            "setup",
+            "failsafe",
+            "power",
+            "adjustments",
+            "auxiliary",
+            "presets",
+            "cli",
+            "configuration",
+            "logging",
+            "onboard_logging",
+            "modes",
+            "motors",
+            "pid_tuning",
+            "ports",
+            "receiver",
+            "sensors",
         ];
 
         this.defaultAllowedTabs = [
