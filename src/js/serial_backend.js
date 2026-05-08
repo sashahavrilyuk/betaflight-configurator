@@ -507,9 +507,13 @@ async function processBuildConfiguration() {
         if (FC.CONFIG.buildKey.length === 32 && ispConnected()) {
             const buildApi = new BuildApi();
             try {
-                let options = await buildApi.requestBuildOptions(FC.CONFIG.buildKey);
-                if (options) {
-                    FC.CONFIG.buildOptions = options.Request.Options;
+                const optionsResponse = await buildApi.requestBuildOptions(FC.CONFIG.buildKey);
+                const requestOptions = optionsResponse?.Request?.Options;
+
+                if (Array.isArray(requestOptions)) {
+                    FC.CONFIG.buildOptions = requestOptions;
+                } else if (optionsResponse && requestOptions === undefined) {
+                    console.warn("Build options response missing Request.Options:", optionsResponse);
                 }
             } catch (error) {
                 console.error("Failed to request build options: ", error);

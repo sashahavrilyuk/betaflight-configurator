@@ -51,3 +51,4 @@ build
 # Ignore Capacitor Android build output directories for local plugins
 capacitor-plugins/*/android/bin/
 
+/elrs

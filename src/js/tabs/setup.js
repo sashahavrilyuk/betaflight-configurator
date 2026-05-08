@@ -31,7 +31,11 @@ setup.initialize = function (callback) {
     }
 
     function mcu_info() {
-        MSP.send_message(MSPCodes.MSP2_MCU_INFO, false, false, load_mixer_config);
+        if (semver.gte(FC.CONFIG.apiVersion, API_VERSION_1_47)) {
+            MSP.send_message(MSPCodes.MSP2_MCU_INFO, false, false, load_mixer_config);
+        } else {
+            load_mixer_config();
+        }
     }
 
     function load_mixer_config() {
