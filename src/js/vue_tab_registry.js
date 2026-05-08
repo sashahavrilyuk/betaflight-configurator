@@ -28,6 +28,7 @@ import VtxTab from "../components/tabs/VtxTab.vue";
 import PresetsTab from "../components/tabs/PresetsTab.vue";
 import LogTab from "../components/tabs/LogTab.vue";
 import CheckingTab from "../components/tabs/CheckingTab.vue";
+import ServiceToolsTab from "../components/tabs/ServiceToolsTab.vue";
 
 export const VueTabComponents = {
     help: HelpTab,
@@ -60,4 +61,5 @@ export const VueTabComponents = {
     presets: PresetsTab,
     log: LogTab,
     checking: CheckingTab,
+    service_tools: ServiceToolsTab,
 };

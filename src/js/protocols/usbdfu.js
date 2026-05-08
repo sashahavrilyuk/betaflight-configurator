@@ -476,11 +476,34 @@ export class UsbDfuProtocol extends EventTarget {
                 .controlTransferIn(setup, length)
                 .then((result) => {
                     if (result.status === "ok") {
-                        const buf =
-                            result.data instanceof Uint8Array
-                                ? result.data
-                                : new Uint8Array(result.data.buffer || result.data);
-                        callback(buf, 0);
+                        if (!result.data) {
+                            throw new Error("Missing controlTransferIn data payload");
+                        }
+
+                        let buf;
+                        if (result.data instanceof Uint8Array) {
+                            buf = result.data;
+                        } else if (result.data?.buffer) {
+                            buf = new Uint8Array(
+                                result.data.buffer,
+                                result.data.byteOffset || 0,
+                                result.data.byteLength,
+                            );
+                        } else if (result.data instanceof ArrayBuffer) {
+                            buf = new Uint8Array(result.data);
+                        } else {
+                            throw new Error("Unsupported controlTransferIn data type");
+                        }
+                        try {
+                            callback(buf, 0);
+                        } catch (callbackError) {
+                            console.log(
+                                `${this.logHead} USB controlTransfer IN callback failed for request: ${request} (${callbackError})`,
+                            );
+                            if (this._connecting) {
+                                this.cleanup();
+                            }
+                        }
                     } else {
                         throw new Error(result.status);
                     }
@@ -517,17 +540,35 @@ export class UsbDfuProtocol extends EventTarget {
         }
     }
 
+    isValidDfuStatusResponse(data, context = "") {
+        if (!data || typeof data.length !== "number" || data.length < 5) {
+            const contextLabel = context ? ` (${context})` : "";
+            console.log(`${this.logHead} Invalid DFU GETSTATUS response${contextLabel}:`, data);
+            return false;
+        }
+        return true;
+    }
+
+    getDfuStatusPollDelay(data) {
+        return data[1] | (data[2] << 8) | (data[3] << 16);
+    }
+
     // routine calling DFU_CLRSTATUS until device is in dfuIDLE state
     clearStatus(callback) {
         const check_status = () => {
             this.controlTransfer("in", this.request.GETSTATUS, 0, 0, 6, 0, (data) => {
+                if (!this.isValidDfuStatusResponse(data, "clearStatus")) {
+                    this.cleanup();
+                    return;
+                }
+
                 let delay = 0;
 
                 if (data[4] === this.state.dfuIDLE) {
                     callback(data);
                 } else {
                     if (data.length) {
-                        delay = data[1] | (data[2] << 8) | (data[3] << 16);
+                        delay = this.getDfuStatusPollDelay(data);
                     }
                     setTimeout(clear_status, delay);
                 }
@@ -549,11 +590,29 @@ export class UsbDfuProtocol extends EventTarget {
             [0x21, address & 0xff, (address >> 8) & 0xff, (address >> 16) & 0xff, (address >> 24) & 0xff],
             () => {
                 this.controlTransfer("in", this.request.GETSTATUS, 0, 0, 6, 0, (data) => {
+                    if (!this.isValidDfuStatusResponse(data, "loadAddress initial")) {
+                        if (abort === undefined || abort) {
+                            this.cleanup();
+                        } else {
+                            callback(data);
+                        }
+                        return;
+                    }
+
                     if (data[4] === this.state.dfuDNBUSY) {
-                        const delay = data[1] | (data[2] << 8) | (data[3] << 16);
+                        const delay = this.getDfuStatusPollDelay(data);
 
                         setTimeout(() => {
                             this.controlTransfer("in", this.request.GETSTATUS, 0, 0, 6, 0, (data) => {
+                                if (!this.isValidDfuStatusResponse(data, "loadAddress poll")) {
+                                    if (abort === undefined || abort) {
+                                        this.cleanup();
+                                    } else {
+                                        callback(data);
+                                    }
+                                    return;
+                                }
+
                                 if (data[4] === this.state.dfuDNLOAD_IDLE) {
                                     callback(data);
                                 } else {
@@ -727,9 +786,17 @@ export class UsbDfuProtocol extends EventTarget {
 
                     this.controlTransfer("out", this.request.DNLOAD, 0, 0, 0, [0x92], () => {
                         this.controlTransfer("in", this.request.GETSTATUS, 0, 0, 6, 0, (data) => {
+                            if (!this.isValidDfuStatusResponse(data, "unprotect initial")) {
+                                console.log(
+                                    `${this.logHead} Failed to initiate unprotect memory command (invalid status)`,
+                                );
+                                this.cleanup();
+                                return;
+                            }
+
                             if (data[4] === this.state.dfuDNBUSY) {
                                 // completely normal
-                                const delay = data[1] | (data[2] << 8) | (data[3] << 16);
+                                const delay = this.getDfuStatusPollDelay(data);
                                 const total_delay = delay + 20000; // wait at least 20 seconds to make sure the user does not disconnect the board while erasing the memory
                                 let timeSpentWaiting = 0;
                                 const incr = 1000; // one sec increments
@@ -817,6 +884,14 @@ export class UsbDfuProtocol extends EventTarget {
                             }
 
                             this.controlTransfer("in", this.request.GETSTATUS, 0, 0, 6, 0, (data) => {
+                                if (!this.isValidDfuStatusResponse(data, "option bytes read status")) {
+                                    console.log(
+                                        `${this.logHead} Option bytes status response invalid. Assuming read protection or unstable DFU status.`,
+                                    );
+                                    this.clearStatus(unprotect);
+                                    return;
+                                }
+
                                 if (
                                     data[4] === this.state.dfuUPLOAD_IDLE &&
                                     ob_data.length === this.chipInfo.option_bytes.total_size
@@ -840,6 +915,12 @@ export class UsbDfuProtocol extends EventTarget {
                 };
 
                 const initReadOB = (loadAddressResponse) => {
+                    if (!this.isValidDfuStatusResponse(loadAddressResponse, "option bytes loadAddress")) {
+                        gui_log(i18n.getMessage("stm32AddressLoadUnknown"));
+                        this.cleanup();
+                        return;
+                    }
+
                     // contrary to what is in the docs. Address load should in theory work even if read protection is active
                     // if address load fails with this specific error though, it is very likely bc of read protection
                     if (
@@ -912,11 +993,13 @@ export class UsbDfuProtocol extends EventTarget {
                 let total_erased = 0; // bytes
 
                 const erase_page_next = () => {
-                    // Calculate progress within erase phase (0-33%)
-                    const eraseStart = this.progressWeights.erase[0];
-                    const eraseRange = this.progressWeights.erase[1] - this.progressWeights.erase[0];
-                    const eraseProgress = ((page + 1) / erase_pages.length) * eraseRange;
-                    this.flashProgress(eraseStart + eraseProgress);
+                    if (this.progressWeights.erase) {
+                        // Calculate progress within erase phase (0-33%)
+                        const eraseStart = this.progressWeights.erase[0];
+                        const eraseRange = this.progressWeights.erase[1] - this.progressWeights.erase[0];
+                        const eraseProgress = ((page + 1) / erase_pages.length) * eraseRange;
+                        this.flashProgress(eraseStart + eraseProgress);
+                    }
                     page++;
 
                     if (page === erase_pages.length) {
@@ -948,12 +1031,33 @@ export class UsbDfuProtocol extends EventTarget {
 
                     this.controlTransfer("out", this.request.DNLOAD, 0, 0, 0, cmd, () => {
                         this.controlTransfer("in", this.request.GETSTATUS, 0, 0, 6, 0, (data) => {
+                            if (!this.isValidDfuStatusResponse(data, `erase init @ 0x${page_addr.toString(16)}`)) {
+                                console.log(
+                                    `${this.logHead} Failed to initiate page erase, invalid status packet, page 0x${page_addr.toString(16)}`,
+                                );
+                                this.cleanup();
+                                return;
+                            }
+
                             if (data[4] === this.state.dfuDNBUSY) {
                                 // completely normal
-                                const delay = data[1] | (data[2] << 8) | (data[3] << 16);
+                                const delay = this.getDfuStatusPollDelay(data);
 
                                 setTimeout(() => {
                                     this.controlTransfer("in", this.request.GETSTATUS, 0, 0, 6, 0, (data) => {
+                                        if (
+                                            !this.isValidDfuStatusResponse(
+                                                data,
+                                                `erase poll @ 0x${page_addr.toString(16)}`,
+                                            )
+                                        ) {
+                                            console.log(
+                                                `${this.logHead} Failed to erase page 0x${page_addr.toString(16)} (invalid status packet)`,
+                                            );
+                                            this.cleanup();
+                                            return;
+                                        }
+
                                         if (data[4] === this.state.dfuDNBUSY) {
                                             //
                                             // H743 Rev.V (probably other H7 Rev.Vs also) remains in dfuDNBUSY state after the specified delay time.
@@ -976,6 +1080,19 @@ export class UsbDfuProtocol extends EventTarget {
                                                     6,
                                                     0,
                                                     (data) => {
+                                                        if (
+                                                            !this.isValidDfuStatusResponse(
+                                                                data,
+                                                                `erase clearStatus poll @ 0x${page_addr.toString(16)}`,
+                                                            )
+                                                        ) {
+                                                            console.log(
+                                                                `${this.logHead} Failed to erase page 0x${page_addr.toString(16)} (invalid status packet after clearStatus)`,
+                                                            );
+                                                            this.cleanup();
+                                                            return;
+                                                        }
+
                                                         if (data[4] === this.state.dfuIDLE) {
                                                             erase_page_next();
                                                         } else {
@@ -1047,11 +1164,32 @@ export class UsbDfuProtocol extends EventTarget {
 
                         this.controlTransfer("out", this.request.DNLOAD, wBlockNum++, 0, 0, data_to_flash, () => {
                             this.controlTransfer("in", this.request.GETSTATUS, 0, 0, 6, 0, (data) => {
+                                if (!this.isValidDfuStatusResponse(data, `write init @ 0x${address.toString(16)}`)) {
+                                    console.log(
+                                        `${this.logHead} Failed to initiate write ${bytes_to_write}bytes to 0x${address.toString(16)} (invalid status packet)`,
+                                    );
+                                    this.cleanup();
+                                    return;
+                                }
+
                                 if (data[4] === this.state.dfuDNBUSY) {
-                                    const delay = data[1] | (data[2] << 8) | (data[3] << 16);
+                                    const delay = this.getDfuStatusPollDelay(data);
 
                                     setTimeout(() => {
                                         this.controlTransfer("in", this.request.GETSTATUS, 0, 0, 6, 0, (data) => {
+                                            if (
+                                                !this.isValidDfuStatusResponse(
+                                                    data,
+                                                    `write poll @ 0x${address.toString(16)}`,
+                                                )
+                                            ) {
+                                                console.log(
+                                                    `${this.logHead} Failed to write ${bytes_to_write}bytes to 0x${address.toString(16)} (invalid status packet)`,
+                                                );
+                                                this.cleanup();
+                                                return;
+                                            }
+
                                             if (data[4] === this.state.dfuDNLOAD_IDLE) {
                                                 // update progress bar
                                                 const flashStart = this.progressWeights.flash[0];

@@ -58,5 +58,6 @@ export const BetaflightComponents = {
         app.component("VtxTab", VueTabComponents.vtx);
         app.component("PresetsTab", VueTabComponents.presets);
         app.component("LogTab", VueTabComponents.log);
+        app.component("ServiceToolsTab", VueTabComponents.service_tools);
     },
 };

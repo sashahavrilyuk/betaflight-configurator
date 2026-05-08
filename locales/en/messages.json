@@ -461,6 +461,9 @@
     "tabChecking": {
         "message": "Checking"
     },
+    "tabServiceTools": {
+        "message": "Service Tools"
+    },
     "tabLedStrip": {
         "message": "LED Strip"
     },
@@ -8500,6 +8503,84 @@
     },
     "backupNoBackupsAvailable": {
         "message": "No backups available"
+    },
+    "serviceToolsConnectRequired": {
+        "message": "Connect to a flight controller before using these tools."
+    },
+    "serviceToolsFcHexTitle": {
+        "message": "1. Load and Flash FC .hex"
+    },
+    "serviceToolsFcHexHint": {
+        "message": "Load a local Betaflight .hex file and flash it directly to the connected FC."
+    },
+    "serviceToolsLoadHex": {
+        "message": "Load .hex"
+    },
+    "serviceToolsFlashHex": {
+        "message": "Flash FC"
+    },
+    "serviceToolsSelectedFile": {
+        "message": "Selected file"
+    },
+    "serviceToolsDumpTitle": {
+        "message": "2. Load and Restore dump / diff"
+    },
+    "serviceToolsDumpHint": {
+        "message": "Load a local backup text file (dump or diff) and apply it through MSP CLI."
+    },
+    "serviceToolsLoadDump": {
+        "message": "Load backup file"
+    },
+    "serviceToolsRestoreDump": {
+        "message": "Restore backup"
+    },
+    "serviceToolsDiscardRestore": {
+        "message": "Discard and reconnect"
+    },
+    "serviceToolsSaveRestore": {
+        "message": "Save and reconnect"
+    },
+    "serviceToolsRestoreConfirm": {
+        "message": "Apply this backup file to the currently connected FC?"
+    },
+    "serviceToolsRxTitle": {
+        "message": "3. Load and Flash ELRS RX"
+    },
+    "serviceToolsRxHint": {
+        "message": "Load a local ELRS firmware file and flash the connected receiver via Betaflight passthrough."
+    },
+    "serviceToolsRxTauriOnly": {
+        "message": "ELRS RX flashing is available only in the desktop Tauri app build."
+    },
+    "serviceToolsRxPlatform": {
+        "message": "RX platform"
+    },
+    "serviceToolsRxBaud": {
+        "message": "Baud rate"
+    },
+    "serviceToolsRxErase": {
+        "message": "Full erase"
+    },
+    "serviceToolsRxForce": {
+        "message": "Force target"
+    },
+    "serviceToolsLoadRx": {
+        "message": "Load RX firmware"
+    },
+    "serviceToolsFlashRx": {
+        "message": "Flash RX"
+    },
+    "serviceToolsRxPortInvalid": {
+        "message": "Selected connection is not a valid serial FC port for ELRS passthrough flashing."
+    },
+    "serviceToolsRxFlashingStarted": {
+        "message": "Starting ELRS flashing..."
+    },
+    "serviceToolsDfuNotDetected": {
+        "message": "FC did not appear in DFU mode. Put the FC in bootloader/DFU manually and try again."
+    },
+    "serviceToolsDfuModeNotice": {
+        "message": "DFU mode detected. FC .hex flashing is available; dump/diff restore and ELRS passthrough need normal FC connection."
     },
     "titleEditBackup": {
         "message": "Edit Backup"

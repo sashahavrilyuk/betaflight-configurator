@@ -9,6 +9,7 @@ export const sidebarItems = [
     { key: "setup", mode: "connected", i18n: "tabSetup", icon: "i-lucide-sliders-horizontal" },
     { key: "ports", mode: "connected", i18n: "tabPorts", icon: "i-lucide-cable" },
     { key: "checking", mode: "connected", i18n: "tabChecking", icon: "i-lucide-check-circle" },
+    { key: "service_tools", mode: "shared", i18n: "tabServiceTools", icon: "i-lucide-wrench" },
     { key: "configuration", mode: "connected", i18n: "tabConfiguration", icon: "i-lucide-settings" },
     { key: "power", mode: "connected", i18n: "tabPower", icon: "i-lucide-battery" },
     { key: "failsafe", mode: "connected", i18n: "tabFailsafe", icon: "i-lucide-shield-alert", expert: true },

@@ -8,13 +8,15 @@ import { connectDisconnect } from "../js/serial_backend";
 const DEFAULT_COMMAND_TIMEOUT_MS = 2000;
 const SAVE_COMMAND_TIMEOUT_MS = 5000;
 const DUMP_READ_TIMEOUT_MS = 10000;
+const LEGACY_DUMP_READ_TIMEOUT_MS = 30000;
+const MSP_CLI_STABLE_VERSION = "4.5.4";
 const LINE_DELAY_MS = 15;
 const PROFILE_COMMAND_DELAY_MS = 100;
 const ERROR_PREFIX = "###ERROR";
 const RECONNECT_TIMEOUT_NAME = "msp_cli_reconnect";
 const RECONNECT_DELAY_MS = 500;
 
-export const MIN_FC_VERSION_FOR_MSP_CLI = "4.5.4";
+export const MIN_FC_VERSION_FOR_MSP_CLI = "4.4.0";
 
 export function isMspCliSupported() {
     const version = FC.CONFIG?.flightControllerVersion;
@@ -62,7 +64,12 @@ export function sendSave() {
 }
 
 export function readDumpAll() {
-    return send("diff all", { timeoutMs: DUMP_READ_TIMEOUT_MS });
+    const version = FC.CONFIG?.flightControllerVersion;
+    const timeoutMs =
+        version && semver.valid(version) && semver.lt(version, MSP_CLI_STABLE_VERSION)
+            ? LEGACY_DUMP_READ_TIMEOUT_MS
+            : DUMP_READ_TIMEOUT_MS;
+    return send("diff all", { timeoutMs });
 }
 
 export function scheduleReconnect() {

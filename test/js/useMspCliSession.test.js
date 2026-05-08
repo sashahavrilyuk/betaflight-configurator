@@ -94,6 +94,30 @@ describe("useMspCliSession", () => {
             await expect(promise).resolves.toEqual(["line1"]);
             expect(sendCliCommandSpy).toHaveBeenCalledWith("diff all", expect.any(Function), expect.any(Object));
         });
+
+        it("readDumpAll uses a longer timeout on legacy firmware", async () => {
+            FC.CONFIG.flightControllerVersion = "4.4.0";
+            const promise = readDumpAll();
+            await respondTo("diff all", ["line1"]);
+            await promise;
+            expect(sendCliCommandSpy).toHaveBeenLastCalledWith(
+                "diff all",
+                expect.any(Function),
+                expect.objectContaining({ timeoutMs: 30000 }),
+            );
+        });
+
+        it("readDumpAll keeps the standard timeout on newer firmware", async () => {
+            FC.CONFIG.flightControllerVersion = "4.6.0";
+            const promise = readDumpAll();
+            await respondTo("diff all", ["line1"]);
+            await promise;
+            expect(sendCliCommandSpy).toHaveBeenLastCalledWith(
+                "diff all",
+                expect.any(Function),
+                expect.objectContaining({ timeoutMs: 10000 }),
+            );
+        });
     });
 
     describe("runBatch", () => {
@@ -194,7 +218,7 @@ describe("useMspCliSession", () => {
         });
 
         it("returns false on firmware older than the minimum", () => {
-            FC.CONFIG.flightControllerVersion = "4.5.3";
+            FC.CONFIG.flightControllerVersion = "4.3.9";
             expect(isMspCliSupported()).toBe(false);
         });
 
