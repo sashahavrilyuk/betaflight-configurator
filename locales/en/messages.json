@@ -363,6 +363,9 @@
     "tabOnboardLogging": {
         "message": "Blackbox"
     },
+    "tabFlashTools": {
+        "message": "Flash Tools"
+    },
     "tabAdjustments": {
         "message": "Adjustments"
     },
@@ -376,7 +379,97 @@
     "logActionShow": {
         "message": "Show Log"
     },
-
+    "fileSystemPickerFiles": {
+        "message": "{{typeof}} files",
+        "description": "Text for the file picker dialog, showing the type of files selected. The parameter can be HEX, TXT, etc."
+    },
+    "fileSystemPickerFirmwareFiles": {
+        "message": "Firmware files"
+    },
+    "flashToolsHexTitle": {
+        "message": "1. FC Firmware (.hex)"
+    },
+    "flashToolsDumpTitle": {
+        "message": "2. CLI Dump / Backup"
+    },
+    "flashToolsElrsTitle": {
+        "message": "3. ELRS RX Firmware (.bin)"
+    },
+    "flashToolsLoadHex": {
+        "message": "Load HEX"
+    },
+    "flashToolsFlashHex": {
+        "message": "Flash HEX"
+    },
+    "flashToolsLoadDump": {
+        "message": "Load Dump"
+    },
+    "flashToolsApplyDump": {
+        "message": "Apply Dump To FC"
+    },
+    "flashToolsSaveAfterApply": {
+        "message": "Save and reboot after apply"
+    },
+    "flashToolsLoadElrsBin": {
+        "message": "Load ELRS BIN"
+    },
+    "flashToolsFlashElrs": {
+        "message": "Flash ELRS RX"
+    },
+    "flashToolsNoFileSelected": {
+        "message": "No file selected"
+    },
+    "flashToolsDumpEmpty": {
+        "message": "Selected dump file has no valid CLI commands."
+    },
+    "flashToolsDumpLoadFailed": {
+        "message": "Failed to load dump file."
+    },
+    "flashToolsDumpApplyFailed": {
+        "message": "Failed to apply dump to FC."
+    },
+    "flashToolsHexReady": {
+        "message": "HEX parsed and ready ({{bytes}} bytes)."
+    },
+    "flashToolsHexLoadFailed": {
+        "message": "Failed to load HEX file."
+    },
+    "flashToolsHexFlashingStarted": {
+        "message": "Flashing HEX..."
+    },
+    "flashToolsHexFlashFailed": {
+        "message": "HEX flashing failed."
+    },
+    "flashToolsDumpReady": {
+        "message": "Dump loaded and ready."
+    },
+    "flashToolsDumpApplying": {
+        "message": "Applying dump via CLI..."
+    },
+    "flashToolsDumpApplied": {
+        "message": "Dump applied."
+    },
+    "flashToolsDumpSaved": {
+        "message": "Dump applied. Save/reboot command sent."
+    },
+    "flashToolsElrsReady": {
+        "message": "ELRS firmware file loaded."
+    },
+    "flashToolsElrsLoadFailed": {
+        "message": "Failed to load ELRS firmware file."
+    },
+    "flashToolsElrsFlashingStarted": {
+        "message": "Flashing ELRS RX firmware..."
+    },
+    "flashToolsElrsFlashingDone": {
+        "message": "ELRS RX flashing completed."
+    },
+    "flashToolsElrsNote": {
+        "message": "ELRS flashing requires native command execution wiring in this build."
+    },
+    "flashToolsElrsNotAvailable": {
+        "message": "ELRS flashing from this tab is not enabled in this build yet. The file is loaded, but running ELRS tooling requires native command execution integration."
+    },
     "serialErrorFrameError": {
         "message": "Serial connection error: bad framing"
     },

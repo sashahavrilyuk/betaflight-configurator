@@ -341,10 +341,12 @@ function startProcess() {
                             firmware_flasher.initialize(content_ready),
                         );
                         break;
-                    case 'help':
-                        import("./tabs/help").then(({ help }) =>
-                            help.initialize(content_ready),
-                        );
+                    case "flash_tools":
+                        import("./tabs/flash_tools").then(({ flash_tools }) => flash_tools.initialize(content_ready));
+                        break;
+                    case "help":
+                        // Vue tab - use mountVueTab instead of jQuery load
+                        mountVueTab("help", content_ready);
                         break;
                     case 'auxiliary':
                         import("./tabs/auxiliary").then(({ auxiliary }) =>

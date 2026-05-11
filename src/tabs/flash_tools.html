@@ -1,0 +1,70 @@
+<div class="tab-flash_tools">
+    <div class="content_wrapper">
+        <div class="tab_title" i18n="tabFlashTools"></div>
+
+        <div class="grid-box col1">
+            <div class="gui_box">
+                <div class="darkgrey_box gui_box_titlebar">
+                    <div class="spacer_box_title" i18n="flashToolsHexTitle"></div>
+                </div>
+                <div class="spacer">
+                    <div class="flash-tools-row">
+                        <a class="load_hex regular-button" href="#" i18n="flashToolsLoadHex"></a>
+                        <span class="flash-tools-file-name hex-file-name" i18n="flashToolsNoFileSelected"></span>
+                    </div>
+                    <div class="flash-tools-row">
+                        <a class="flash_hex regular-button disabled" href="#" i18n="flashToolsFlashHex"></a>
+                    </div>
+                    <div class="flash-tools-row flash-tools-progress-row">
+                        <progress class="hex-progress" value="0" max="100"></progress>
+                        <span class="hex-progress-label">0%</span>
+                    </div>
+                    <div class="flash-tools-status hex-status"></div>
+                </div>
+            </div>
+
+            <div class="gui_box">
+                <div class="darkgrey_box gui_box_titlebar">
+                    <div class="spacer_box_title" i18n="flashToolsDumpTitle"></div>
+                </div>
+                <div class="spacer">
+                    <div class="flash-tools-row">
+                        <a class="load_dump regular-button" href="#" i18n="flashToolsLoadDump"></a>
+                        <span class="flash-tools-file-name dump-file-name" i18n="flashToolsNoFileSelected"></span>
+                    </div>
+                    <div class="flash-tools-row">
+                        <label>
+                            <input class="save_after_dump toggle" type="checkbox" checked />
+                            <span i18n="flashToolsSaveAfterApply"></span>
+                        </label>
+                    </div>
+                    <div class="flash-tools-row">
+                        <a class="apply_dump regular-button disabled" href="#" i18n="flashToolsApplyDump"></a>
+                    </div>
+                    <div class="flash-tools-status dump-status"></div>
+                    <div class="flash-tools-cli-window" id="flash_tools_cli_window">
+                        <div class="wrapper" id="flash_tools_cli_window_wrapper"></div>
+                    </div>
+                    <textarea id="flash_tools_cli_command" class="flash-tools-cli-command" rows="1" cols="1"></textarea>
+                </div>
+            </div>
+
+            <div class="gui_box">
+                <div class="darkgrey_box gui_box_titlebar">
+                    <div class="spacer_box_title" i18n="flashToolsElrsTitle"></div>
+                </div>
+                <div class="spacer">
+                    <div class="flash-tools-row">
+                        <a class="load_elrs regular-button" href="#" i18n="flashToolsLoadElrsBin"></a>
+                        <span class="flash-tools-file-name elrs-file-name" i18n="flashToolsNoFileSelected"></span>
+                    </div>
+                    <div class="flash-tools-row">
+                        <a class="flash_elrs regular-button disabled" href="#" i18n="flashToolsFlashElrs"></a>
+                    </div>
+                    <div class="flash-tools-status elrs-status"></div>
+                    <div class="flash-tools-note" i18n="flashToolsElrsNote"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
