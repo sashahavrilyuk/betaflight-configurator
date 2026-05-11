@@ -800,11 +800,91 @@ firmware_flasher.initialize = async function (callback) {
             return output.join("").split("\n");
         }
 
+        async function loadLocalFile(file) {
+            if (!file) {
+                return false;
+            }
+
+            // Reset button when loading a new firmware
+            self.enableFlashButton(false);
+            self.enableLoadRemoteFileButton(false);
+
+            self.developmentFirmwareLoaded = false;
+
+            try {
+                console.log(`${self.logHead} loading firmware from:`, file.name);
+
+                const extension = getExtension(file.name);
+                if (extension === "uf2") {
+                    const data = await FileSystem.readFileAsBlob(file);
+                    self.localFirmwareLoaded = true;
+                    await processUf2(data, file.name);
+                    return true;
+                }
+
+                const data = await FileSystem.readFile(file);
+                if (extension === "hex") {
+                    return await new Promise((resolve) => {
+                        parseHex(data, function (parsedData) {
+                            self.parsed_hex = parsedData;
+
+                            if (self.parsed_hex) {
+                                self.localFirmwareLoaded = true;
+                                showLoadedFirmware(file.name, self.parsed_hex.bytes_total);
+                                resolve(true);
+                            } else {
+                                self.flashingMessage(
+                                    i18n.getMessage("firmwareFlasherHexCorrupted"),
+                                    self.FLASH_MESSAGE_TYPES.INVALID,
+                                );
+                                resolve(false);
+                            }
+                        });
+                    });
+                }
+
+                clearBufferedFirmware();
+                let config = cleanUnifiedConfigFile(data);
+                if (config !== null) {
+                    setBoardConfig(config, file.name);
+
+                    if (self.isConfigLocal && !self.parsed_hex) {
+                        self.flashingMessage(
+                            i18n.getMessage("firmwareFlasherLoadedConfig"),
+                            self.FLASH_MESSAGE_TYPES.NEUTRAL,
+                        );
+                    }
+
+                    if (
+                        (self.isConfigLocal && self.parsed_hex && !self.localFirmwareLoaded) ||
+                        self.localFirmwareLoaded
+                    ) {
+                        self.enableFlashButton(true);
+                        self.flashingMessage(
+                            i18n.getMessage("firmwareFlasherFirmwareLocalLoaded", {
+                                filename: file.name,
+                                bytes: self.parsed_hex.bytes_total,
+                            }),
+                            self.FLASH_MESSAGE_TYPES.NEUTRAL,
+                        );
+                    }
+                }
+
+                return true;
+            } catch (error) {
+                console.error("Error reading file:", error);
+                self.enableLoadRemoteFileButton(true);
+                self.enableLoadFileButton(true);
+                return false;
+            }
+        }
+
         // Expose the local startFlashing implementation to module callers/tests so
         // module-scoped handlers can safely call firmware_flasher.startFlashing()
         // even if those callers ran before initialize() completed.
         firmware_flasher.startFlashing = startFlashing;
         firmware_flasher.clearBufferedFirmware = clearBufferedFirmware;
+        firmware_flasher.loadLocalFile = loadLocalFile;
 
         EventBus.$on("port-handler:auto-select-usb-device", firmware_flasher.detectedUsbDevice);
         EventBus.$on("port-handler:device-removed", firmware_flasher.onDeviceRemoved);
@@ -959,80 +1039,11 @@ firmware_flasher.initialize = async function (callback) {
 
         // UI Hooks
         $("a.load_file").on("click", async function () {
-            // Reset button when loading a new firmware
-            self.enableFlashButton(false);
-            self.enableLoadRemoteFileButton(false);
-
-            self.developmentFirmwareLoaded = false;
-
-            try {
-                const file = await FileSystem.pickOpenFile(i18n.getMessage("fileSystemPickerFirmwareFiles"), [
-                    ".hex",
-                    ".uf2",
-                ]);
-
-                if (!file) {
-                    return; // user cancelled
-                }
-                console.log(`${self.logHead} loading firmware from:`, file.name);
-
-                const extension = getExtension(file.name);
-                if (extension === "uf2") {
-                    const data = await FileSystem.readFileAsBlob(file);
-                    self.localFirmwareLoaded = true;
-                    processUf2(data, file.name);
-                } else {
-                    const data = await FileSystem.readFile(file);
-                    if (extension === "hex") {
-                        parseHex(data, function (data) {
-                            self.parsed_hex = data;
-
-                            if (self.parsed_hex) {
-                                self.localFirmwareLoaded = true;
-
-                                showLoadedFirmware(file.name, self.parsed_hex.bytes_total);
-                            } else {
-                                self.flashingMessage(
-                                    i18n.getMessage("firmwareFlasherHexCorrupted"),
-                                    self.FLASH_MESSAGE_TYPES.INVALID,
-                                );
-                            }
-                        });
-                    } else {
-                        clearBufferedFirmware();
-
-                        let config = cleanUnifiedConfigFile(data);
-                        if (config !== null) {
-                            setBoardConfig(config, file.name);
-
-                            if (self.isConfigLocal && !self.parsed_hex) {
-                                self.flashingMessage(
-                                    i18n.getMessage("firmwareFlasherLoadedConfig"),
-                                    self.FLASH_MESSAGE_TYPES.NEUTRAL,
-                                );
-                            }
-
-                            if (
-                                (self.isConfigLocal && self.parsed_hex && !self.localFirmwareLoaded) ||
-                                self.localFirmwareLoaded
-                            ) {
-                                self.enableFlashButton(true);
-                                self.flashingMessage(
-                                    i18n.getMessage("firmwareFlasherFirmwareLocalLoaded", {
-                                        filename: file.name,
-                                        bytes: self.parsed_hex.bytes_total,
-                                    }),
-                                    self.FLASH_MESSAGE_TYPES.NEUTRAL,
-                                );
-                            }
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error("Error reading file:", error);
-                self.enableLoadRemoteFileButton(true);
-                self.enableLoadFileButton(true);
-            }
+            const file = await FileSystem.pickOpenFile(i18n.getMessage("fileSystemPickerFirmwareFiles"), [
+                ".hex",
+                ".uf2",
+            ]);
+            await loadLocalFile(file);
         });
         /**
          * Lock / Unlock the firmware download button according to the firmware selection dropdown.
@@ -1524,6 +1535,16 @@ firmware_flasher.initialize = async function (callback) {
 
         if (PortHandler.dfuAvailable) {
             $("a.exit_dfu").removeClass("disabled");
+        }
+
+        const pendingHexRequest = globalThis.__flashToolsPendingHexRequest;
+        if (pendingHexRequest?.file) {
+            delete globalThis.__flashToolsPendingHexRequest;
+
+            const loaded = await loadLocalFile(pendingHexRequest.file);
+            if (loaded && pendingHexRequest.autoFlash) {
+                $("a.flash_firmware").trigger("click");
+            }
         }
 
         GUI.content_ready(callback);

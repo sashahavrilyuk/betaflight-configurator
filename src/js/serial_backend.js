@@ -697,7 +697,12 @@ export function read_serial(info) {
         MSP.disconnect_cleanup();
         TABS.cli.read(info);
     } else if (CONFIGURATOR.cliEngineActive) {
-        TABS.presets.read(info);
+        const activeTab = GUI.active_tab ? TABS[GUI.active_tab] : null;
+        if (activeTab?.read) {
+            activeTab.read(info);
+        } else if (TABS.presets?.read) {
+            TABS.presets.read(info);
+        }
     } else {
         MSP.read(info);
     }
@@ -760,8 +765,8 @@ export async function update_sensor_status() {
 }
 
 async function update_live_status() {
-    // cli or presets tab do not use MSP connection
-    if (GUI.active_tab !== "cli" && GUI.active_tab !== "presets") {
+    // CLI modes do not use normal MSP polling
+    if (!CONFIGURATOR.cliActive && !CONFIGURATOR.cliEngineActive) {
         await update_sensor_status();
     }
 }

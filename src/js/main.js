@@ -253,6 +253,9 @@ function startProcess() {
                             firmware_flasher.initialize(content_ready),
                         );
                         break;
+                    case "flash_tools":
+                        import("./tabs/flash_tools").then(({ flash_tools }) => flash_tools.initialize(content_ready));
+                        break;
                     case "help":
                         // Vue tab - use mountVueTab instead of jQuery load
                         mountVueTab("help", content_ready);

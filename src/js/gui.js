@@ -27,7 +27,14 @@ class GuiControl {
         this.reboot_timestamp = 0;
         this.REBOOT_CONNECT_MAX_TIME_MS = 10000;
 
-        this.defaultAllowedTabsWhenDisconnected = ["landing", "firmware_flasher", "privacy_policy", "options", "help"];
+        this.defaultAllowedTabsWhenDisconnected = [
+            "landing",
+            "firmware_flasher",
+            "flash_tools",
+            "privacy_policy",
+            "options",
+            "help",
+        ];
 
         this.defaultAllowedTabs = [
             "checking",
@@ -37,6 +44,7 @@ class GuiControl {
             "adjustments",
             "auxiliary",
             "presets",
+            "flash_tools",
             "cli",
             "configuration",
             "logging",
