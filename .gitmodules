@@ -1,0 +1,3 @@
+[submodule "web-flasher"]
+	path = web-flasher
+	url = https://github.com/ExpressLRS/web-flasher
