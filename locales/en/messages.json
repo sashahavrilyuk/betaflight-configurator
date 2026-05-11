@@ -465,10 +465,10 @@
         "message": "ELRS RX flashing completed."
     },
     "flashToolsElrsNote": {
-        "message": "ELRS flashing requires native command execution wiring in this build."
+        "message": "Uses browser Web Serial + Betaflight passthrough to flash the selected RX .bin."
     },
     "flashToolsElrsNotAvailable": {
-        "message": "ELRS flashing from this tab is not enabled in this build yet. The file is loaded, but running ELRS tooling requires native command execution integration."
+        "message": "ELRS flashing failed. Confirm Web Serial support and Betaflight CRSF RX UART configuration, then try again."
     },
     "serialErrorFrameError": {
         "message": "Serial connection error: bad framing"
