@@ -11,6 +11,8 @@ import STM32 from "../protocols/webstm32";
 import DFU from "../protocols/webusbdfu";
 import { get as getConfig, set as setConfig } from "../ConfigStorage";
 import { serial } from "../serial";
+import { ESPFlasher } from "../../../web-flasher/src/js/espflasher.js";
+import { MismatchError, WrongMCU } from "../../../web-flasher/src/js/error.js";
 
 const flash_tools = {
     hexFile: null,
@@ -438,79 +440,65 @@ flash_tools.onHtmlLoad = function (callback) {
     }
 
     async function runElrsViaLocalPython() {
-        const nodeRequire = typeof window !== "undefined" && window.require ? window.require.bind(window) : null;
-        if (!nodeRequire) {
-            throw new Error("Node integration is not available");
+        if (!(typeof navigator !== "undefined" && navigator.serial?.requestPort)) {
+            throw new Error("Web Serial API is not supported in this browser");
         }
 
-        const fs = nodeRequire("fs");
-        const os = nodeRequire("os");
-        const path = nodeRequire("path");
-        const childProcess = nodeRequire("child_process");
-        const processModule = nodeRequire("process");
+        if (serial.connected) {
+            try {
+                await serial.disconnect();
+            } catch (error) {
+                console.warn("Failed to disconnect active serial link before ELRS flash:", error);
+            }
+        }
 
-        const cwd = processModule.cwd();
-        const pythonEmbedded = path.join(cwd, "elrs", "python", "python.exe");
-        const pythonExecutable = fs.existsSync(pythonEmbedded) ? pythonEmbedded : "python";
-        const scriptPath = path.join(cwd, "elrs", "main.py");
-        const tempFile = path.join(os.tmpdir(), `elrs-rx-${Date.now()}.bin`);
+        const blob = await FileSystem.readFileAsBlob(self.elrsFile);
+        const firmware = new Uint8Array(await blob.arrayBuffer());
+        const files = [{ data: firmware, address: 0x0 }];
 
-        const binBlob = await FileSystem.readFileAsBlob(self.elrsFile);
-        const bytes = Buffer.from(await binBlob.arrayBuffer());
-        fs.writeFileSync(tempFile, bytes);
+        let latestStatus = "";
+        const updateStatusFromLog = (raw) => {
+            const text = `${raw ?? ""}`.replace(/\s+/g, " ").trim();
+            if (!text || text === latestStatus) {
+                return;
+            }
+            latestStatus = text;
+            setStatus(".elrs-status", text.slice(-220));
+        };
 
-        const args = [
-            scriptPath,
-            "--flash",
-            "bf",
-            "--baud",
-            "420000",
-            "--platform",
-            "esp8285",
-            "--device_type",
-            "rx",
-            tempFile,
-        ];
+        const terminal = {
+            write(line) {
+                updateStatusFromLog(line);
+            },
+            writeln(line) {
+                updateStatusFromLog(line);
+            },
+        };
 
-        return await new Promise((resolve, reject) => {
-            const proc = childProcess.spawn(pythonExecutable, args, {
-                cwd: path.join(cwd, "elrs"),
-                windowsHide: true,
-            });
+        const selectedPort = await navigator.serial.requestPort();
+        const flasherConfig = {
+            platform: "auto",
+            firmware: "FORCE",
+        };
+        const flasher = new ESPFlasher(selectedPort, "RX", "betaflight", flasherConfig, {}, "", terminal);
 
-            let output = "";
-            proc.stdout?.on("data", (data) => {
-                output += data.toString();
-                setStatus(".elrs-status", output.slice(-220));
-            });
-            proc.stderr?.on("data", (data) => {
-                output += data.toString();
-                setStatus(".elrs-status", output.slice(-220));
-            });
-
-            proc.on("error", (error) => {
-                try {
-                    fs.unlinkSync(tempFile);
-                } catch {
-                    // ignore cleanup errors
+        try {
+            const chip = await flasher.connect();
+            setStatus(".elrs-status", `Connected to ${chip}.`);
+            await flasher.flash(files, false, (_fileIndex, written, total) => {
+                if (!total) {
+                    return;
                 }
-                reject(error);
+                const progress = Math.max(0, Math.min(100, Math.round((written / total) * 100)));
+                setStatus(".elrs-status", `${i18n.getMessage("flashToolsElrsFlashingStarted")} ${progress}%`);
             });
-
-            proc.on("close", (code) => {
-                try {
-                    fs.unlinkSync(tempFile);
-                } catch {
-                    // ignore cleanup errors
-                }
-
-                if (code === 0) {
-                    resolve(output);
-                } else {
-                    reject(new Error(output || `ELRS process exited with code ${code}`));
-                }
-            });
-        });
+        } finally {
+            try {
+                await flasher.close();
+            } catch (error) {
+                console.warn("Failed to close ELRS flasher transport:", error);
+            }
+        }
     }
 
     async function flashElrs() {
@@ -526,7 +514,15 @@ flash_tools.onHtmlLoad = function (callback) {
             setStatus(".elrs-status", i18n.getMessage("flashToolsElrsFlashingDone"));
         } catch (error) {
             console.error("ELRS flashing failed:", error);
-            setStatus(".elrs-status", i18n.getMessage("flashToolsElrsNotAvailable"));
+            if (error?.name === "NotFoundError" || error?.name === "AbortError") {
+                setStatus(".elrs-status", i18n.getMessage("portsSelectNoSelection"));
+            } else if (error instanceof WrongMCU || error instanceof MismatchError) {
+                setStatus(".elrs-status", error.message || i18n.getMessage("flashToolsElrsNotAvailable"));
+            } else if (error?.message) {
+                setStatus(".elrs-status", error.message);
+            } else {
+                setStatus(".elrs-status", i18n.getMessage("flashToolsElrsNotAvailable"));
+            }
         } finally {
             setButtonState("a.flash_elrs", true);
         }
