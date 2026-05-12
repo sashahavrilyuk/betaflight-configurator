@@ -497,9 +497,17 @@ flash_tools.onHtmlLoad = function (callback) {
     }
 
     async function ensureDumpSerialLink() {
-        if (CONFIGURATOR.connectionValid) {
+        // After DFU flashing, CONFIGURATOR.connectionValid may still be
+        // true from the MSP handshake that STM32.connect() performed
+        // before rebooting into the bootloader.  The serial port itself
+        // is long gone at this point, so we must also verify that the
+        // underlying transport is still open before trusting the flag.
+        if (CONFIGURATOR.connectionValid && serial.connected) {
             return;
         }
+
+        // Reset the stale flag – the MSP session no longer exists.
+        CONFIGURATOR.connectionValid = false;
 
         if (self.dumpDirectSerialActive && serial.connected) {
             return;
@@ -517,6 +525,7 @@ flash_tools.onHtmlLoad = function (callback) {
         // "serial port not open" errors in activateCli.
         if (selectedPort && selectedPort.startsWith("usb_")) {
             // Phase 1: wait for the DFU device to fully disconnect.
+            setStatus(".dump-status", "Waiting for FC to reboot...");
             try {
                 await waitForCondition(
                     () => {
@@ -531,13 +540,36 @@ flash_tools.onHtmlLoad = function (callback) {
             }
 
             // Phase 2: wait for the rebooted FC to enumerate as a serial port.
+            // If the port doesn't auto-appear (e.g. the FC uses a different VID/PID
+            // in normal mode and WebSerial hasn't cached a permission for it), the
+            // status message below prompts the user to replug.  PortHandler will
+            // then auto-select the new serial port and the poll condition fires.
+            // Allow up to 60 s so there is enough time for a manual replug.
+            setStatus(".dump-status", "Waiting for FC serial port... (if it doesn't appear, replug the FC)");
             try {
                 await waitForCondition(
                     () => {
                         const port = PortHandler.portPicker.selectedPort;
                         return port && port !== "noselection" && !port.startsWith("usb_");
                     },
-                    15000,
+                    60000,
+                    200,
+                );
+                selectedPort = PortHandler.portPicker.selectedPort;
+            } catch {
+                throw new Error(i18n.getMessage("portsSelectNoSelection"));
+            }
+        } else if (!selectedPort || selectedPort === "noselection") {
+            // DFU device may have already disappeared before we reached this
+            // point but the FC hasn't re-enumerated as a serial port yet.
+            setStatus(".dump-status", "Waiting for FC serial port... (if it doesn't appear, replug the FC)");
+            try {
+                await waitForCondition(
+                    () => {
+                        const port = PortHandler.portPicker.selectedPort;
+                        return port && port !== "noselection" && !port.startsWith("usb_");
+                    },
+                    60000,
                     200,
                 );
                 selectedPort = PortHandler.portPicker.selectedPort;
@@ -553,10 +585,17 @@ flash_tools.onHtmlLoad = function (callback) {
 
         const portName = selectedPort === "manual" ? PortHandler.portPicker.portOverride : selectedPort;
         const baudRate = PortHandler.portPicker.selectedBauds || 115200;
+
+        setStatus(".dump-status", "Connecting to FC serial port...");
         const connected = await serial.connect(portName, { baudRate });
         if (!connected) {
             throw new Error("Direct serial connect failed");
         }
+
+        // Give the FC a moment to finish booting after DFU flash before
+        // we start sending CLI activation bytes.
+        setStatus(".dump-status", "Waiting for FC to initialize...");
+        await new Promise((resolve) => setTimeout(resolve, 1500));
 
         self.dumpDirectSerialOpenedByTool = true;
         self.dumpDirectSerialActive = true;
@@ -642,8 +681,42 @@ flash_tools.onHtmlLoad = function (callback) {
                     baud = parseInt(getConfig("flash_manual_baud_rate").flash_manual_baud_rate) || 115200;
                 }
 
+                // STM32.connect() handles MSP handshake → reboot to DFU →
+                // DFU permission dialog.  However its callback never fires
+                // in the serial→DFU flow (it relies on firmware_flasher tab
+                // event listeners that flash_tools doesn't have).
+                //
+                // Strategy: start the STM32 reboot process, then poll for a
+                // DFU device to appear, and drive DFU.connect() ourselves.
+                setStatus(".hex-status", "Rebooting FC to bootloader...");
+                STM32.connect(selectedPort, baud, self.hexParsed, options, () => {
+                    // no-op: callback may or may not fire depending on path
+                });
+
+                // Wait for PortHandler to auto-select the DFU device
+                // (STM32.handleDisconnect will request DFU permission after ~3 s).
+                setStatus(".hex-status", "Waiting for DFU device...");
+                try {
+                    await waitForCondition(
+                        () => {
+                            const port = PortHandler.portPicker.selectedPort;
+                            return port && port.startsWith("usb_");
+                        },
+                        30000,
+                        300,
+                    );
+                } catch {
+                    throw new Error("DFU device did not appear after reboot");
+                }
+
+                // Prevent STM32.handleDisconnect's 3 s timer from showing
+                // a competing DFU permission dialog — we drive DFU ourselves.
+                STM32.rebootMode = 0;
+
+                const dfuPort = PortHandler.portPicker.selectedPort;
+                setStatus(".hex-status", "Flashing via DFU...");
                 await new Promise((resolve) => {
-                    STM32.connect(selectedPort, baud, self.hexParsed, options, resolve);
+                    DFU.connect(dfuPort, self.hexParsed, options, resolve);
                 });
             } else {
                 const usbDevice = await DFU.requestPermission();
@@ -774,15 +847,15 @@ flash_tools.onHtmlLoad = function (callback) {
                 setConfig({ lastTab: "tab_flash_tools" });
                 self.cliEngine.sendLine(CliEngine.s_commandSave);
                 setStatus(".dump-status", i18n.getMessage("flashToolsDumpSaved"));
-                GUI.timeout_add(
-                    "flash_tools_cli_reset_after_save",
-                    () => {
-                        CONFIGURATOR.cliEngineActive = false;
-                        CONFIGURATOR.cliEngineValid = false;
-                        closeDirectDumpSerial();
-                    },
-                    1000,
-                );
+
+                // 'save' reboots the FC — wait for the serial link to drop
+                // and the device to fully restart before returning, so the
+                // next step (e.g. flashElrs) doesn't collide with the reboot.
+                await new Promise((resolve) => setTimeout(resolve, 4000));
+
+                CONFIGURATOR.cliEngineActive = false;
+                CONFIGURATOR.cliEngineValid = false;
+                await closeDirectDumpSerial();
             } else {
                 await leaveCli();
                 await closeDirectDumpSerial();
@@ -821,7 +894,7 @@ flash_tools.onHtmlLoad = function (callback) {
         }
     }
 
-    async function runElrsViaLocalPython() {
+    async function runElrsViaLocalPython(preGrantedPort = null) {
         if (!(typeof navigator !== "undefined" && navigator.serial?.requestPort)) {
             throw new Error("Web Serial API is not supported in this browser");
         }
@@ -833,6 +906,10 @@ flash_tools.onHtmlLoad = function (callback) {
                 console.warn("Failed to disconnect active serial link before ELRS flash:", error);
             }
         }
+
+        // Let USB settle after FC reboot / serial disconnect before we try
+        // to open a different serial port for the ELRS receiver.
+        await new Promise((resolve) => setTimeout(resolve, 2000));
 
         const blob = await FileSystem.readFileAsBlob(self.elrsFile);
         const firmware = new Uint8Array(await blob.arrayBuffer());
@@ -857,33 +934,48 @@ flash_tools.onHtmlLoad = function (callback) {
             },
         };
 
-        const selectedPort = await navigator.serial.requestPort();
+        const selectedPort = preGrantedPort || (await navigator.serial.requestPort());
         const flasherConfig = {
             platform: "auto",
             firmware: "FORCE",
         };
-        const flasher = new ESPFlasher(selectedPort, "RX", "betaflight", flasherConfig, {}, "", terminal);
 
-        try {
-            const chip = await flasher.connect();
-            setStatus(".elrs-status", `Connected to ${chip}.`);
-            await flasher.flash(files, false, (_fileIndex, written, total) => {
-                if (!total) {
-                    return;
-                }
-                const progress = Math.max(0, Math.min(100, Math.round((written / total) * 100)));
-                setStatus(".elrs-status", `${i18n.getMessage("flashToolsElrsFlashingStarted")} ${progress}%`);
-            });
-        } finally {
+        // The ELRS serial port may not be ready immediately (e.g. the FC
+        // just rebooted and USB is still settling).  Retry a few times.
+        const maxRetries = 3;
+        let lastError = null;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            const flasher = new ESPFlasher(selectedPort, "RX", "betaflight", flasherConfig, {}, "", terminal);
             try {
-                await flasher.close();
+                setStatus(".elrs-status", `Connecting to ELRS receiver (attempt ${attempt}/${maxRetries})...`);
+                const chip = await flasher.connect();
+                setStatus(".elrs-status", `Connected to ${chip}.`);
+                await flasher.flash(files, false, (_fileIndex, written, total) => {
+                    if (!total) {
+                        return;
+                    }
+                    const progress = Math.max(0, Math.min(100, Math.round((written / total) * 100)));
+                    setStatus(".elrs-status", `${i18n.getMessage("flashToolsElrsFlashingStarted")} ${progress}%`);
+                });
+                return; // success
             } catch (error) {
-                console.warn("Failed to close ELRS flasher transport:", error);
+                lastError = error;
+                console.warn(`ELRS connect attempt ${attempt} failed:`, error);
+                try {
+                    await flasher.close();
+                } catch {
+                    // ignore close errors
+                }
+                if (attempt < maxRetries) {
+                    setStatus(".elrs-status", `Retrying in 3s... (${attempt}/${maxRetries})`);
+                    await new Promise((resolve) => setTimeout(resolve, 3000));
+                }
             }
         }
+        throw lastError || new Error("Failed to connect to ELRS receiver");
     }
 
-    async function flashElrs() {
+    async function flashElrs(preGrantedPort = null) {
         if (!self.elrsFile) {
             return false;
         }
@@ -892,7 +984,7 @@ flash_tools.onHtmlLoad = function (callback) {
         setStatus(".elrs-status", i18n.getMessage("flashToolsElrsFlashingStarted"));
 
         try {
-            await runElrsViaLocalPython();
+            await runElrsViaLocalPython(preGrantedPort);
             setStatus(".elrs-status", i18n.getMessage("flashToolsElrsFlashingDone"));
             return true;
         } catch (error) {
@@ -986,6 +1078,41 @@ flash_tools.onHtmlLoad = function (callback) {
             return;
         }
 
+        // Pre-grant permissions while the user-gesture token is still fresh
+        // (it expires after ~5 s and the DFU flash takes ~44 s).
+        //
+        // 1. FC serial port: after DFU the FC re-enumerates with its own
+        //    VID/PID. Pre-granting here lets PortHandler auto-detect it.
+        // 2. ELRS serial port: the receiver is a separate device that also
+        //    needs requestPort() which requires a user gesture.
+        const preFlashPort = PortHandler.portPicker.selectedPort;
+        if (
+            navigator.serial?.requestPort &&
+            (!preFlashPort || preFlashPort === "noselection" || preFlashPort.startsWith("usb_"))
+        ) {
+            try {
+                setStatus(".dump-status", "Select the FC serial port to use after flashing...");
+                await navigator.serial.requestPort();
+                setStatus(".dump-status", "");
+            } catch {
+                setStatus(".dump-status", "");
+            }
+        }
+
+        // Pre-grant ELRS receiver serial port while gesture is still valid.
+        let elrsPort = null;
+        if (self.elrsFile && navigator.serial?.requestPort) {
+            try {
+                setStatus(".elrs-status", "Select the ELRS receiver serial port...");
+                elrsPort = await navigator.serial.requestPort();
+                setStatus(".elrs-status", "");
+            } catch {
+                // User dismissed — flashElrs will try requestPort itself
+                // (will fail without gesture, but standalone flash_elrs button still works).
+                setStatus(".elrs-status", "");
+            }
+        }
+
         if (!(await flashHex())) {
             return;
         }
@@ -994,7 +1121,7 @@ flash_tools.onHtmlLoad = function (callback) {
             return;
         }
 
-        await flashElrs();
+        await flashElrs(elrsPort);
     });
 
     renderPresetList();
