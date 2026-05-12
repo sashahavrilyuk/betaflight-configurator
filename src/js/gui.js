@@ -379,8 +379,16 @@ class GuiControl {
         }
     }
     selectDefaultTabWhenConnected() {
+<<<<<<< HEAD
         const result = getConfig(['rememberLastTab', 'lastTab']);
         const tab = result.rememberLastTab && result.lastTab && this.allowedTabs.includes(result.lastTab.substring(4)) ? result.lastTab : 'tab_setup';
+=======
+        const result = getConfig(["rememberLastTab", "lastTab"]);
+        const tab =
+            result.rememberLastTab && result.lastTab && this.allowedTabs.includes(result.lastTab.substring(4))
+                ? result.lastTab
+                : "tab_checking";
+>>>>>>> 650898d0 (flash all fixes in flash tools tab)
 
         $(`#tabs ul.mode-connected .${tab} a`).trigger('click');
     }

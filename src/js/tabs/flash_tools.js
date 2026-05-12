@@ -180,6 +180,7 @@ flash_tools.onHtmlLoad = function (callback) {
 
     function refreshPresetButtonsState() {
         setButtonState("a.save_preset", hasAllFilesLoaded());
+        setButtonState("a.flash_all", hasAllFilesLoaded());
         const hasSelection = !!filePresetSelectionId();
         setButtonState("a.load_preset", hasSelection);
         setButtonState("a.delete_preset", hasSelection);
@@ -194,6 +195,10 @@ flash_tools.onHtmlLoad = function (callback) {
         const select = $(".flash-tools-preset-list");
         select.empty();
         select.append($("<option />").attr("value", "").text("Select saved preset"));
+
+        // Capture last-created before sorting (storage order = insertion order)
+        const lastCreated = presets.length > 0 ? presets[presets.length - 1] : null;
+
         presets
             .sort((a, b) => a.name.localeCompare(b.name, window.navigator.language, { sensitivity: "base" }))
             .forEach((preset) => {
@@ -202,8 +207,8 @@ flash_tools.onHtmlLoad = function (callback) {
 
         if (selectedId && presets.some((preset) => preset.id === selectedId)) {
             select.val(selectedId);
-        } else if (presets.length > 0) {
-            select.val(presets[0].id); // select first preset after sorting
+        } else if (lastCreated) {
+            select.val(lastCreated.id); // default to last created preset
         } else {
             select.val("");
         }
@@ -894,7 +899,7 @@ flash_tools.onHtmlLoad = function (callback) {
         }
     }
 
-    async function runElrsViaLocalPython(preGrantedPort = null) {
+    async function runElrsViaLocalPython(elrsPortInfo = null) {
         if (!(typeof navigator !== "undefined" && navigator.serial?.requestPort)) {
             throw new Error("Web Serial API is not supported in this browser");
         }
@@ -934,14 +939,29 @@ flash_tools.onHtmlLoad = function (callback) {
             },
         };
 
-        const selectedPort = preGrantedPort || (await navigator.serial.requestPort());
+        // If we have pre-granted port info (VID/PID), look up a fresh
+        // SerialPort reference via getPorts() — the original object may
+        // be stale after USB re-enumeration during DFU/save reboots.
+        let selectedPort = null;
+        if (elrsPortInfo) {
+            const permittedPorts = await navigator.serial.getPorts();
+            selectedPort = permittedPorts.find((p) => {
+                const info = p.getInfo();
+                return info.usbVendorId === elrsPortInfo.usbVendorId && info.usbProductId === elrsPortInfo.usbProductId;
+            });
+            if (!selectedPort) {
+                console.warn("Pre-granted ELRS port not found in permitted ports, will request new one");
+            }
+        }
+        if (!selectedPort) {
+            selectedPort = await navigator.serial.requestPort();
+        }
         const flasherConfig = {
             platform: "auto",
             firmware: "FORCE",
         };
 
-        // The ELRS serial port may not be ready immediately (e.g. the FC
-        // just rebooted and USB is still settling).  Retry a few times.
+        // The ELRS serial port may not be ready immediately.  Retry a few times.
         const maxRetries = 3;
         let lastError = null;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -975,7 +995,7 @@ flash_tools.onHtmlLoad = function (callback) {
         throw lastError || new Error("Failed to connect to ELRS receiver");
     }
 
-    async function flashElrs(preGrantedPort = null) {
+    async function flashElrs(elrsPortInfo = null) {
         if (!self.elrsFile) {
             return false;
         }
@@ -984,7 +1004,7 @@ flash_tools.onHtmlLoad = function (callback) {
         setStatus(".elrs-status", i18n.getMessage("flashToolsElrsFlashingStarted"));
 
         try {
-            await runElrsViaLocalPython(preGrantedPort);
+            await runElrsViaLocalPython(elrsPortInfo);
             setStatus(".elrs-status", i18n.getMessage("flashToolsElrsFlashingDone"));
             return true;
         } catch (error) {
@@ -1100,15 +1120,20 @@ flash_tools.onHtmlLoad = function (callback) {
         }
 
         // Pre-grant ELRS receiver serial port while gesture is still valid.
-        let elrsPort = null;
+        // Store VID/PID rather than the SerialPort object — the object goes
+        // stale after USB re-enumeration during DFU / save reboots.
+        let elrsPortInfo = null;
         if (self.elrsFile && navigator.serial?.requestPort) {
             try {
                 setStatus(".elrs-status", "Select the ELRS receiver serial port...");
-                elrsPort = await navigator.serial.requestPort();
+                const elrsPort = await navigator.serial.requestPort();
+                const info = elrsPort.getInfo();
+                elrsPortInfo = {
+                    usbVendorId: info.usbVendorId,
+                    usbProductId: info.usbProductId,
+                };
                 setStatus(".elrs-status", "");
             } catch {
-                // User dismissed — flashElrs will try requestPort itself
-                // (will fail without gesture, but standalone flash_elrs button still works).
                 setStatus(".elrs-status", "");
             }
         }
@@ -1121,7 +1146,7 @@ flash_tools.onHtmlLoad = function (callback) {
             return;
         }
 
-        await flashElrs(elrsPort);
+        await flashElrs(elrsPortInfo);
     });
 
     renderPresetList();
