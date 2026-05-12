@@ -5,6 +5,31 @@
         <div class="grid-box col1">
             <div class="gui_box">
                 <div class="darkgrey_box gui_box_titlebar">
+                    <div class="spacer_box_title">Preset Saving</div>
+                </div>
+                <div class="spacer">
+                    <div class="flash-tools-row">
+                        <input
+                            class="flash-tools-preset-name"
+                            type="text"
+                            maxlength="64"
+                            placeholder="Preset name"
+                        />
+                        <a class="save_preset regular-button disabled" href="#">Save preset</a>
+                    </div>
+                    <div class="flash-tools-row">
+                        <select class="flash-tools-preset-list">
+                            <option value="">Select saved preset</option>
+                        </select>
+                        <a class="load_preset regular-button disabled" href="#">Load preset</a>
+                        <a class="delete_preset regular-button disabled" href="#">Delete preset</a>
+                    </div>
+                    <div class="flash-tools-status preset-status"></div>
+                </div>
+            </div>
+
+            <div class="gui_box">
+                <div class="darkgrey_box gui_box_titlebar">
                     <div class="spacer_box_title" i18n="flashToolsHexTitle"></div>
                 </div>
                 <div class="spacer">
@@ -66,5 +91,10 @@
                 </div>
             </div>
         </div>
+    </div>
+    <div class="content_toolbar toolbar_fixed_bottom" style="position: fixed">
+            <div class="btn save_btn">
+                <a class="flash_all regular-button disabled" href="#" i18n="flashToolsFlashAll"></a>
+            </div>
     </div>
 </div>

@@ -493,6 +493,9 @@
     "flashToolsFlashElrs": {
         "message": "Flash ELRS RX"
     },
+    "flashToolsFlashAll": {
+        "message": "Flash All"
+    },
     "flashToolsNoFileSelected": {
         "message": "No file selected"
     },
