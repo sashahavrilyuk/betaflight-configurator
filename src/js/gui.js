@@ -333,7 +333,7 @@ class GuiControl {
         const tab =
             result.rememberLastTab && result.lastTab && this.allowedTabs.includes(result.lastTab.substring(4))
                 ? result.lastTab
-                : "tab_setup";
+                : "tab_checking";
 
         $(`#tabs ul.mode-connected .${tab} a`).trigger("click");
     }
