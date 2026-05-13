@@ -1238,7 +1238,7 @@ firmware_flasher.initialize = function (callback) {
         if (pendingHexRequest?.file) {
             delete globalThis.__flashToolsPendingHexRequest;
 
-            const loaded = await loadLocalFile(pendingHexRequest.file);
+            const loaded = loadLocalFile(pendingHexRequest.file);
             if (loaded && pendingHexRequest.autoFlash) {
                 $("a.flash_firmware").trigger("click");
             }

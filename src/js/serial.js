@@ -467,3 +467,6 @@ const serial = {
 };
 
 export default serial;
+export { serial };
+
+

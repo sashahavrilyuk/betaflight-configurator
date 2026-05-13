@@ -19,6 +19,7 @@ import { gui_log } from "./gui_log";
 import { updateTabList } from "./utils/updateTabList";
 import { get as getConfig, set as setConfig } from "./ConfigStorage";
 import { tracking } from "./Analytics";
+import { ispConnected } from "./utils/connection";
 import semver from 'semver';
 import CryptoES from "crypto-es";
 import $ from 'jquery';
@@ -778,6 +779,7 @@ export function read_serial(info) {
 
 async function update_live_status() {
     const statuswrapper = $('#quad-status_wrapper');
+    
 
     if (GUI.active_tab !== 'cli' && GUI.active_tab !== 'presets') {
         await MSP.promise(MSPCodes.MSP_ANALOG);
@@ -822,16 +824,10 @@ async function update_live_status() {
 
         sensor_status(FC.CONFIG.activeSensors, FC.GPS_DATA.fix);
 
+    }
     sensor_status(FC.CONFIG.activeSensors, FC.GPS_DATA.fix);
 
     statuswrapper.show();
-}
-
-async function update_live_status() {
-    // CLI modes do not use normal MSP polling
-    if (!CONFIGURATOR.cliActive && !CONFIGURATOR.cliEngineActive) {
-        await update_sensor_status();
-    }
 }
 
 function clearLiveDataRefreshTimer() {
