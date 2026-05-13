@@ -939,21 +939,33 @@ flash_tools.onHtmlLoad = function (callback) {
             },
         };
 
-        // If we have pre-granted port info (VID/PID), look up a fresh
-        // SerialPort reference via getPorts() — the original object may
-        // be stale after USB re-enumeration during DFU/save reboots.
+        // Try to find the FC serial port from already-permitted ports first.
+        // This avoids needing a user gesture (which expires after ~5s and is
+        // gone by the time Flash All reaches the ELRS step).
+        // The FC port was already granted during the dump-apply step.
         let selectedPort = null;
-        if (elrsPortInfo) {
-            const permittedPorts = await navigator.serial.getPorts();
-            selectedPort = permittedPorts.find((p) => {
-                const info = p.getInfo();
-                return info.usbVendorId === elrsPortInfo.usbVendorId && info.usbProductId === elrsPortInfo.usbProductId;
-            });
+        const permittedPorts = await navigator.serial.getPorts();
+        if (permittedPorts.length === 1) {
+            selectedPort = permittedPorts[0];
+        } else if (permittedPorts.length > 1) {
+            // Multiple permitted ports — try to match the one PortHandler selected
+            const currentPortPath = PortHandler.portPicker.selectedPort;
+            if (currentPortPath && currentPortPath !== "noselection") {
+                // Find the port whose info matches the PortHandler selection
+                for (const p of permittedPorts) {
+                    const info = p.getInfo();
+                    if (info.usbVendorId && info.usbProductId) {
+                        selectedPort = p;
+                        break;
+                    }
+                }
+            }
             if (!selectedPort) {
-                console.warn("Pre-granted ELRS port not found in permitted ports, will request new one");
+                selectedPort = permittedPorts[0];
             }
         }
         if (!selectedPort) {
+            // No permitted ports — need a user gesture (standalone flash button)
             selectedPort = await navigator.serial.requestPort();
         }
         const flasherConfig = {
@@ -961,41 +973,31 @@ flash_tools.onHtmlLoad = function (callback) {
             firmware: "FORCE",
         };
 
-        // The ELRS serial port may not be ready immediately.  Retry a few times.
-        const maxRetries = 3;
-        let lastError = null;
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            const flasher = new ESPFlasher(selectedPort, "RX", "betaflight", flasherConfig, {}, "", terminal);
+        // Single attempt — the passthrough session now stays alive through
+        // the esptool connect/flash cycle (no transport.disconnect between
+        // passthrough setup and esptool sync).
+        const flasher = new ESPFlasher(selectedPort, "RX", "betaflight", flasherConfig, {}, "", terminal);
+        try {
+            setStatus(".elrs-status", "Connecting to ELRS receiver...");
+            const chip = await flasher.connect();
+            setStatus(".elrs-status", `Connected to ${chip}. Flashing...`);
+            await flasher.flash(files, false, (_fileIndex, written, total) => {
+                if (!total) {
+                    return;
+                }
+                const progress = Math.max(0, Math.min(100, Math.round((written / total) * 100)));
+                setStatus(".elrs-status", `${i18n.getMessage("flashToolsElrsFlashingStarted")} ${progress}%`);
+            });
+        } finally {
             try {
-                setStatus(".elrs-status", `Connecting to ELRS receiver (attempt ${attempt}/${maxRetries})...`);
-                const chip = await flasher.connect();
-                setStatus(".elrs-status", `Connected to ${chip}.`);
-                await flasher.flash(files, false, (_fileIndex, written, total) => {
-                    if (!total) {
-                        return;
-                    }
-                    const progress = Math.max(0, Math.min(100, Math.round((written / total) * 100)));
-                    setStatus(".elrs-status", `${i18n.getMessage("flashToolsElrsFlashingStarted")} ${progress}%`);
-                });
-                return; // success
+                await flasher.close();
             } catch (error) {
-                lastError = error;
-                console.warn(`ELRS connect attempt ${attempt} failed:`, error);
-                try {
-                    await flasher.close();
-                } catch {
-                    // ignore close errors
-                }
-                if (attempt < maxRetries) {
-                    setStatus(".elrs-status", `Retrying in 3s... (${attempt}/${maxRetries})`);
-                    await new Promise((resolve) => setTimeout(resolve, 3000));
-                }
+                console.warn("Failed to close ELRS flasher transport:", error);
             }
         }
-        throw lastError || new Error("Failed to connect to ELRS receiver");
     }
 
-    async function flashElrs(elrsPortInfo = null) {
+    async function flashElrs() {
         if (!self.elrsFile) {
             return false;
         }
@@ -1004,7 +1006,7 @@ flash_tools.onHtmlLoad = function (callback) {
         setStatus(".elrs-status", i18n.getMessage("flashToolsElrsFlashingStarted"));
 
         try {
-            await runElrsViaLocalPython(elrsPortInfo);
+            await runElrsViaLocalPython();
             setStatus(".elrs-status", i18n.getMessage("flashToolsElrsFlashingDone"));
             return true;
         } catch (error) {
@@ -1092,6 +1094,8 @@ flash_tools.onHtmlLoad = function (callback) {
         await flashElrs();
     });
 
+    // Keep the old standalone flash_elrs handler below unchanged
+
     $("a.flash_all").on("click", async (event) => {
         event.preventDefault();
         if ($("a.flash_all").hasClass("disabled")) {
@@ -1119,25 +1123,6 @@ flash_tools.onHtmlLoad = function (callback) {
             }
         }
 
-        // Pre-grant ELRS receiver serial port while gesture is still valid.
-        // Store VID/PID rather than the SerialPort object — the object goes
-        // stale after USB re-enumeration during DFU / save reboots.
-        let elrsPortInfo = null;
-        if (self.elrsFile && navigator.serial?.requestPort) {
-            try {
-                setStatus(".elrs-status", "Select the ELRS receiver serial port...");
-                const elrsPort = await navigator.serial.requestPort();
-                const info = elrsPort.getInfo();
-                elrsPortInfo = {
-                    usbVendorId: info.usbVendorId,
-                    usbProductId: info.usbProductId,
-                };
-                setStatus(".elrs-status", "");
-            } catch {
-                setStatus(".elrs-status", "");
-            }
-        }
-
         if (!(await flashHex())) {
             return;
         }
@@ -1146,7 +1131,11 @@ flash_tools.onHtmlLoad = function (callback) {
             return;
         }
 
-        await flashElrs(elrsPortInfo);
+        // ELRS uses the FC serial port via passthrough — the same port
+        // that was already granted during dump apply.  No separate
+        // pre-grant is needed; runElrsViaLocalPython will find it via
+        // getPorts().
+        await flashElrs();
     });
 
     renderPresetList();
