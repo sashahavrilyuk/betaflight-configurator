@@ -20,6 +20,8 @@ import semver from 'semver';
 import { checkChromeRuntimeError, urlExists } from '../utils/common';
 import { generateFilename } from '../utils/generate_filename';
 import Sponsor from '../Sponsor';
+import FileSystem from '../FileSystem';
+import read_hex_file from '../workers/hex_parser.js';
 
 const firmware_flasher = {
     targets: null,
@@ -61,19 +63,21 @@ firmware_flasher.initialize = function (callback) {
     self.intel_hex = undefined;
     self.parsed_hex = undefined;
 
+    function getExtension(key) {
+        if (!key) {
+            return undefined;
+        }
+
+        const lower = key.toLowerCase();
+        return lower.split('?')[0].split('#')[0].split('.').pop();
+    }
+
     function onDocumentLoad() {
 
         function parseHex(str, callback) {
-            // parsing hex in different thread
-            const worker = new Worker('./js/workers/hex_parser.js');
-
-            // "callback"
-            worker.onmessage = function (event) {
-                callback(event.data);
-            };
-
-            // send data/string over for processing
-            worker.postMessage(str);
+            read_hex_file(str).then((data) => {
+                callback(data);
+            });
         }
 
         function showLoadedHex(filename) {
@@ -589,10 +593,13 @@ firmware_flasher.initialize = function (callback) {
 
                 const extension = getExtension(file.name);
                 if (extension === "uf2") {
-                    const data = await FileSystem.readFileAsBlob(file);
-                    self.localFirmwareLoaded = true;
-                    await processUf2(data, file.name);
-                    return true;
+                    self.flashingMessage(
+                        i18n.getMessage("firmwareFlasherInvalidFileFormat"),
+                        self.FLASH_MESSAGE_TYPES.INVALID,
+                    );
+                    self.enableLoadRemoteFileButton(true);
+                    self.enableLoadFileButton(true);
+                    return false;
                 }
 
                 const data = await FileSystem.readFile(file);
@@ -603,7 +610,7 @@ firmware_flasher.initialize = function (callback) {
 
                             if (self.parsed_hex) {
                                 self.localFirmwareLoaded = true;
-                                showLoadedFirmware(file.name, self.parsed_hex.bytes_total);
+                                showLoadedHex(file.name);
                                 resolve(true);
                             } else {
                                 self.flashingMessage(
@@ -658,6 +665,8 @@ firmware_flasher.initialize = function (callback) {
         firmware_flasher.startFlashing = startFlashing;
         firmware_flasher.clearBufferedFirmware = clearBufferedFirmware;
         firmware_flasher.loadLocalFile = loadLocalFile;
+
+        const portPickerElement = $('div#port-picker #port');
 
         function flashFirmware(firmware) {
             const options = {};
@@ -1234,14 +1243,15 @@ firmware_flasher.initialize = function (callback) {
 
         self.flashingMessage(i18n.getMessage('firmwareFlasherLoadFirmwareFile'), self.FLASH_MESSAGE_TYPES.NEUTRAL);
 
-        const pendingHexRequest = globalThis.__flashToolsPendingHexRequest;
+        const pendingHexRequest = window.__flashToolsPendingHexRequest;
         if (pendingHexRequest?.file) {
-            delete globalThis.__flashToolsPendingHexRequest;
+            delete window.__flashToolsPendingHexRequest;
 
-            const loaded = loadLocalFile(pendingHexRequest.file);
-            if (loaded && pendingHexRequest.autoFlash) {
-                $("a.flash_firmware").trigger("click");
-            }
+            loadLocalFile(pendingHexRequest.file).then((loaded) => {
+                if (loaded && pendingHexRequest.autoFlash) {
+                    $("a.flash_firmware").trigger("click");
+                }
+            });
         }
 
         GUI.content_ready(callback);

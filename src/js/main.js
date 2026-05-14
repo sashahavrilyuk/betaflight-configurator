@@ -345,8 +345,9 @@ function startProcess() {
                         import("./tabs/flash_tools").then(({ flash_tools }) => flash_tools.initialize(content_ready));
                         break;
                     case "help":
-                        // Vue tab - use mountVueTab instead of jQuery load
-                        mountVueTab("help", content_ready);
+                        import("./tabs/help").then(({ help }) =>
+                            help.initialize(content_ready),
+                        );
                         break;
                     case 'auxiliary':
                         import("./tabs/auxiliary").then(({ auxiliary }) =>
@@ -399,7 +400,9 @@ function startProcess() {
                         );
                         break;
                     case "checking":
-                        mountVueTab("checking", content_ready);
+                        import("./tabs/checking").then(({ checking }) =>
+                            checking.initialize(content_ready),
+                        );
                         break;
                     case "setup_osd":
                         import("./tabs/setup_osd").then(({ setup_osd }) => setup_osd.initialize(content_ready));

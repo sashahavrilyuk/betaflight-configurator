@@ -779,7 +779,7 @@ export function read_serial(info) {
 
 async function update_live_status() {
     const statuswrapper = $('#quad-status_wrapper');
-    
+
 
     if (GUI.active_tab !== 'cli' && GUI.active_tab !== 'presets') {
         await MSP.promise(MSPCodes.MSP_ANALOG);

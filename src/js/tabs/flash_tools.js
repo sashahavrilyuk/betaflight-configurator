@@ -6,9 +6,10 @@ import FileSystem from "../FileSystem";
 import CliEngine from "../../tabs/presets/CliEngine";
 import { gui_log } from "../gui_log";
 import read_hex_file from "../workers/hex_parser.js";
-import PortHandler from "../port_handler";
+import PortHandler, { usbDevices } from "../port_handler";
 import STM32 from "../protocols/webstm32";
 import DFU from "../protocols/webusbdfu";
+import STM32DFU from "../protocols/stm32usbdfu";
 import { get as getConfig, set as setConfig } from "../ConfigStorage";
 import { serial } from "../serial";
 import { ESPFlasher } from "../../../web-flasher/src/js/espflasher.js";
@@ -66,6 +67,31 @@ flash_tools.onHtmlLoad = function (callback) {
 
     function setStatus(selector, text) {
         $(selector).text(text || "");
+    }
+
+    function getSelectedPort() {
+        return PortHandler?.portPicker?.selectedPort || String($("div#port-picker #port").val() || "");
+    }
+
+    function getSelectedBaud() {
+        return PortHandler?.portPicker?.selectedBauds || parseInt($("div#port-picker #baud").val()) || 115200;
+    }
+
+    function getPortOverride() {
+        return PortHandler?.portPicker?.portOverride || String($("#port-override").val() || "");
+    }
+
+    function isNoSelection(port) {
+        return !port || port === "noselection" || port === "0";
+    }
+
+    function isDfuSelection(port) {
+        if (!port) {
+            return false;
+        }
+
+        const selected = $("div#port-picker #port option:selected").data();
+        return port === "DFU" || port.startsWith("usb_") || selected?.isDFU === true;
     }
 
     function setHexProgress(progress, label) {
@@ -518,7 +544,7 @@ flash_tools.onHtmlLoad = function (callback) {
             return;
         }
 
-        let selectedPort = PortHandler.portPicker.selectedPort;
+        let selectedPort = getSelectedPort();
 
         // After DFU flashing the device reboots and re-enumerates as a serial port.
         // We must wait for two distinct transitions before connecting:
@@ -528,14 +554,14 @@ flash_tools.onHtmlLoad = function (callback) {
         // Connecting after only phase 1 (or not waiting at all) picks up a port
         // that the DFU teardown event will close moments later, causing
         // "serial port not open" errors in activateCli.
-        if (selectedPort && selectedPort.startsWith("usb_")) {
+        if (isDfuSelection(selectedPort)) {
             // Phase 1: wait for the DFU device to fully disconnect.
             setStatus(".dump-status", "Waiting for FC to reboot...");
             try {
                 await waitForCondition(
                     () => {
-                        const port = PortHandler.portPicker.selectedPort;
-                        return !port || port === "noselection";
+                        const port = getSelectedPort();
+                        return isNoSelection(port);
                     },
                     15000,
                     200,
@@ -554,42 +580,42 @@ flash_tools.onHtmlLoad = function (callback) {
             try {
                 await waitForCondition(
                     () => {
-                        const port = PortHandler.portPicker.selectedPort;
-                        return port && port !== "noselection" && !port.startsWith("usb_");
+                        const port = getSelectedPort();
+                        return !isNoSelection(port) && !isDfuSelection(port);
                     },
                     60000,
                     200,
                 );
-                selectedPort = PortHandler.portPicker.selectedPort;
+                selectedPort = getSelectedPort();
             } catch {
                 throw new Error(i18n.getMessage("portsSelectNoSelection"));
             }
-        } else if (!selectedPort || selectedPort === "noselection") {
+        } else if (isNoSelection(selectedPort)) {
             // DFU device may have already disappeared before we reached this
             // point but the FC hasn't re-enumerated as a serial port yet.
             setStatus(".dump-status", "Waiting for FC serial port... (if it doesn't appear, replug the FC)");
             try {
                 await waitForCondition(
                     () => {
-                        const port = PortHandler.portPicker.selectedPort;
-                        return port && port !== "noselection" && !port.startsWith("usb_");
+                        const port = getSelectedPort();
+                        return !isNoSelection(port) && !isDfuSelection(port);
                     },
                     60000,
                     200,
                 );
-                selectedPort = PortHandler.portPicker.selectedPort;
+                selectedPort = getSelectedPort();
             } catch {
                 throw new Error(i18n.getMessage("portsSelectNoSelection"));
             }
         }
 
-        const hasPortSelection = selectedPort && selectedPort !== "noselection";
+        const hasPortSelection = !isNoSelection(selectedPort);
         if (!hasPortSelection) {
             throw new Error(i18n.getMessage("portsSelectNoSelection"));
         }
 
-        const portName = selectedPort === "manual" ? PortHandler.portPicker.portOverride : selectedPort;
-        const baudRate = PortHandler.portPicker.selectedBauds || 115200;
+        const portName = selectedPort === "manual" ? getPortOverride() : selectedPort;
+        const baudRate = getSelectedBaud();
 
         setStatus(".dump-status", "Connecting to FC serial port...");
         const connected = await serial.connect(portName, { baudRate });
@@ -658,26 +684,37 @@ flash_tools.onHtmlLoad = function (callback) {
         TABS.firmware_flasher = flasherShim;
 
         try {
+            const flashViaDfu = async (dfuPort, options) => {
+                if (dfuPort === "DFU") {
+                    await new Promise((resolve) => {
+                        STM32DFU.connect(usbDevices, self.hexParsed, options, resolve);
+                    });
+                    return;
+                }
+
+                await new Promise((resolve) => {
+                    DFU.connect(dfuPort, self.hexParsed, options, resolve);
+                });
+            };
+
             const options = {};
             const eraseChip = !!getConfig("erase_chip").erase_chip;
             if (eraseChip) {
                 options.erase_chip = true;
             }
 
-            const selectedPort = PortHandler.portPicker.selectedPort || "";
-            const isSerial = selectedPort.startsWith("serial") || selectedPort.startsWith("capacitor-");
-            const isDFU = selectedPort.startsWith("usb_");
+            const selectedPort = getSelectedPort();
+            const isDFU = isDfuSelection(selectedPort);
+            const isSerial = !isNoSelection(selectedPort) && !isDFU;
 
             if (isDFU) {
-                await new Promise((resolve) => {
-                    DFU.connect(selectedPort, self.hexParsed, options, resolve);
-                });
+                await flashViaDfu(selectedPort, options);
             } else if (isSerial) {
                 const noReboot = !!getConfig("no_reboot_sequence").no_reboot_sequence;
                 if (noReboot) {
                     options.no_reboot = true;
                 } else {
-                    options.reboot_baud = PortHandler.portPicker.selectedBauds;
+                    options.reboot_baud = getSelectedBaud();
                 }
 
                 let baud = 115200;
@@ -704,8 +741,8 @@ flash_tools.onHtmlLoad = function (callback) {
                 try {
                     await waitForCondition(
                         () => {
-                            const port = PortHandler.portPicker.selectedPort;
-                            return port && port.startsWith("usb_");
+                            const port = getSelectedPort();
+                            return isDfuSelection(port);
                         },
                         30000,
                         300,
@@ -718,19 +755,15 @@ flash_tools.onHtmlLoad = function (callback) {
                 // a competing DFU permission dialog — we drive DFU ourselves.
                 STM32.rebootMode = 0;
 
-                const dfuPort = PortHandler.portPicker.selectedPort;
+                const dfuPort = getSelectedPort();
                 setStatus(".hex-status", "Flashing via DFU...");
-                await new Promise((resolve) => {
-                    DFU.connect(dfuPort, self.hexParsed, options, resolve);
-                });
+                await flashViaDfu(dfuPort, options);
             } else {
                 const usbDevice = await DFU.requestPermission();
                 if (!usbDevice?.path) {
                     throw new Error("No DFU device permission granted");
                 }
-                await new Promise((resolve) => {
-                    DFU.connect(usbDevice.path, self.hexParsed, options, resolve);
-                });
+                await flashViaDfu(usbDevice.path, options);
             }
 
             return true;
@@ -949,7 +982,7 @@ flash_tools.onHtmlLoad = function (callback) {
             selectedPort = permittedPorts[0];
         } else if (permittedPorts.length > 1) {
             // Multiple permitted ports — try to match the one PortHandler selected
-            const currentPortPath = PortHandler.portPicker.selectedPort;
+            const currentPortPath = getSelectedPort();
             if (currentPortPath && currentPortPath !== "noselection") {
                 // Find the port whose info matches the PortHandler selection
                 for (const p of permittedPorts) {
@@ -1109,7 +1142,7 @@ flash_tools.onHtmlLoad = function (callback) {
         //    VID/PID. Pre-granting here lets PortHandler auto-detect it.
         // 2. ELRS serial port: the receiver is a separate device that also
         //    needs requestPort() which requires a user gesture.
-        const preFlashPort = PortHandler.portPicker.selectedPort;
+        const preFlashPort = getSelectedPort();
         if (
             navigator.serial?.requestPort &&
             (!preFlashPort || preFlashPort === "noselection" || preFlashPort.startsWith("usb_"))

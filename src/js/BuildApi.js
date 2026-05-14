@@ -143,6 +143,18 @@ export default class BuildApi {
 
     requestBuildOptions(key, onSuccess, onFailure) {
         const url = `${this._url}/api/builds/${key}/json`;
+
+        // Support both legacy callback style and newer Promise style.
+        if (typeof onSuccess !== 'function') {
+            return new Promise((resolve, reject) => {
+                $.get(url, function (data) {
+                    resolve(data);
+                }).fail(xhr => {
+                    reject(xhr);
+                });
+            });
+        }
+
         $.get(url, function (data) {
             onSuccess(data);
         }).fail(xhr => {
